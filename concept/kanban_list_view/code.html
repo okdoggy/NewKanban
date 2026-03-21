@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VisualAI Group - Kanban &amp; List View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#dde1ff",
+              "surface-container-high": "#e6e8ea",
+              "surface-bright": "#f7f9fb",
+              "surface-container": "#eceef0",
+              "inverse-on-surface": "#eff1f3",
+              "surface-container-lowest": "#ffffff",
+              "on-surface": "#191c1e",
+              "tertiary-container": "#bc4800",
+              "background": "#f7f9fb",
+              "surface": "#f7f9fb",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "tertiary": "#943700",
+              "on-secondary-fixed-variant": "#38485d",
+              "secondary-fixed-dim": "#b7c8e1",
+              "on-error": "#ffffff",
+              "on-primary": "#ffffff",
+              "inverse-primary": "#b8c4ff",
+              "on-tertiary-container": "#ffede6",
+              "surface-tint": "#3755c3",
+              "inverse-surface": "#2d3133",
+              "primary-fixed-dim": "#b8c4ff",
+              "on-primary-fixed-variant": "#173bab",
+              "on-secondary-fixed": "#0b1c30",
+              "outline-variant": "#c3c6d7",
+              "on-secondary-container": "#54647a",
+              "on-error-container": "#93000a",
+              "on-primary-fixed": "#001453",
+              "on-primary-container": "#efefff",
+              "surface-variant": "#e0e3e5",
+              "secondary-container": "#d0e1fb",
+              "error-container": "#ffdad6",
+              "surface-dim": "#d8dadc",
+              "on-secondary": "#ffffff",
+              "primary": "#2b4bb9",
+              "on-surface-variant": "#434655",
+              "error": "#ba1a1a",
+              "tertiary-fixed-dim": "#ffb596",
+              "tertiary-fixed": "#ffdbcd",
+              "on-tertiary-fixed": "#360f00",
+              "surface-container-highest": "#e0e3e5",
+              "on-background": "#191c1e",
+              "on-tertiary": "#ffffff",
+              "secondary": "#505f76",
+              "primary-container": "#4865d3",
+              "surface-container-low": "#f2f4f6",
+              "outline": "#737686",
+              "secondary-fixed": "#d3e4fe"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .tonal-layering {
+        box-shadow: 0px 20px 40px rgba(43, 75, 185, 0.06);
+      }
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #c3c6d7;
+        border-radius: 10px;
+      }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-sm flex items-center justify-between px-6 h-16 w-full">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900">VisualAI Group</span>
+<div class="hidden md:flex items-center gap-6">
+<a class="font-manrope tracking-tight font-semibold text-slate-500 hover:text-slate-900 transition-colors" href="#">Workspaces</a>
+<a class="font-manrope tracking-tight font-semibold text-slate-500 hover:text-slate-900 transition-colors" href="#">Teams</a>
+<a class="font-manrope tracking-tight font-semibold text-slate-500 hover:text-slate-900 transition-colors" href="#">Activity</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="bg-slate-100/50 border-none rounded-full pl-10 pr-4 py-2 w-64 focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search..." type="text"/>
+</div>
+<button class="px-4 py-2 bg-primary-container text-white rounded-xl font-semibold scale-95 active:scale-90 duration-150 transition-all">Invite</button>
+<div class="flex items-center gap-2 border-l border-slate-100 pl-4">
+<button class="p-2 hover:bg-slate-50 rounded-full transition-colors"><span class="material-symbols-outlined text-slate-600">notifications</span></button>
+<button class="p-2 hover:bg-slate-50 rounded-full transition-colors"><span class="material-symbols-outlined text-slate-600">settings</span></button>
+<div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden ml-2 ring-2 ring-white shadow-sm">
+<img class="w-full h-full object-cover" data-alt="User Profile Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3fOCuDTwJ6NE0EomzGLcocITKpvWAqaslSh4N92uCOsxAbD4MK4q-2GyHPqhdc6bSR0nGQI2PVOl8pjTCXo3qGRTYgS2Y4hcRNbI3lS-oUUEIM7JQ7w2sRBu4DeWDMXru8Y90OHpNdRDpOAYVV-wyW74e31HGXWZbZd8KMPoS1KmjGOdheJEGe2JQtPJ2vkfeOORV_PE-cV03yXNrBREoACZtvXmELuWM6-6goDGZDd0sY3PLD1fh1GekTTiafrazSeTYtT_vKNQ"/>
+</div>
+</div>
+</div>
+</nav>
+<div class="flex pt-16 h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-full py-4 bg-slate-50 w-64 border-r-0 flex-shrink-0">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">view_quilt</span>
+</div>
+<div>
+<h2 class="font-manrope font-bold text-lg text-slate-900 leading-none">Design Studio</h2>
+<p class="text-[10px] text-slate-500 font-medium tracking-wider uppercase mt-1">VisualAI Main TG</p>
+</div>
+</div>
+<div class="px-4 mb-6">
+<button class="w-full py-3 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>New Task</span>
+</button>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 mx-2 px-4 py-2 text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 bg-blue-50 text-blue-700 rounded-xl mx-2 px-4 py-2 font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">view_kanban</span>
+<span>Kanban</span>
+</a>
+<a class="flex items-center gap-3 mx-2 px-4 py-2 text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">timeline</span>
+<span>Gantt</span>
+</a>
+<a class="flex items-center gap-3 mx-2 px-4 py-2 text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">calendar_month</span>
+<span>Calendar</span>
+</a>
+<a class="flex items-center gap-3 mx-2 px-4 py-2 text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">polyline</span>
+<span>WhiteBoard</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-slate-200/50 pt-4 space-y-1">
+<a class="flex items-center gap-3 mx-2 px-4 py-2 text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">archive</span>
+<span>Archive</span>
+</a>
+<a class="flex items-center gap-3 mx-2 px-4 py-2 text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl text-red-400">delete</span>
+<span>Trash</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto custom-scrollbar bg-surface px-8 py-8">
+<!-- Header & Toggle Section -->
+<header class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h1 class="font-headline text-4xl font-extrabold text-on-surface tracking-tight">Active Projects</h1>
+<p class="text-secondary mt-2 text-lg">Managing tasks across Design Studio workspace.</p>
+</div>
+<div class="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-2xl tonal-layering">
+<button class="flex items-center gap-2 px-6 py-2.5 bg-surface-container-lowest text-primary rounded-xl font-bold shadow-sm transition-all">
+<span class="material-symbols-outlined text-[20px]">view_kanban</span>
+<span>Board View</span>
+</button>
+<button class="flex items-center gap-2 px-6 py-2.5 text-secondary hover:text-on-surface rounded-xl font-medium transition-all">
+<span class="material-symbols-outlined text-[20px]">format_list_bulleted</span>
+<span>List View</span>
+</button>
+</div>
+</header>
+<!-- Kanban Board -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+<!-- Column: To Do -->
+<div class="space-y-4">
+<div class="flex items-center justify-between px-2 mb-2">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+<h3 class="font-headline font-bold text-on-surface tracking-tight uppercase text-xs">To Do</h3>
+<span class="bg-surface-container-high px-2 py-0.5 rounded-md text-[10px] font-bold text-secondary">3</span>
+</div>
+<button class="text-secondary hover:text-on-surface"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<!-- Task Card 1 -->
+<div class="bg-surface-container-lowest p-4 rounded-xl tonal-layering group cursor-pointer hover:ring-2 hover:ring-primary/10 transition-all">
+<div class="flex justify-between items-start mb-3">
+<span class="bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Design</span>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">open_in_new</span>
+</div>
+<h4 class="font-bold text-on-surface mb-2 leading-tight">Revamp Design System documentation</h4>
+<p class="text-sm text-secondary mb-4 line-clamp-2">Update all visual tokens and documentation for the v2 rollout.</p>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-7 h-7 rounded-full border-2 border-white overflow-hidden bg-slate-100">
+<img class="w-full h-full object-cover" data-alt="Female team member portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUUhBNRV400rkFIPDHc7aDuGYmkoV509bZxXOLcF3Saq6YphOZK4oYG-mTbm6w6T_K9yfvX3IHzbqosquxk1pryeCGZjoZO-oQa-fmPd-jg-0w3Ke3s3PIa1GxaOWjQtmcSxOplGesV8XoI2ubZDj3IKN-OyjEpu2vx5D-aq7ECxFc-63EGC5SVeUIC08hLPFSzq4RnIOfURcHDK3ZJYPLGkN7GpH_JJa7Sikrg0YHvR4F-QlMEMJWoy1pCWCgFUess1UFwMCjsmY"/>
+</div>
+<div class="w-7 h-7 rounded-full border-2 border-white overflow-hidden bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">+2</div>
+</div>
+<div class="flex items-center gap-2 text-slate-400 text-xs">
+<span class="material-symbols-outlined text-sm">chat_bubble</span> 4
+                            </div>
+</div>
+</div>
+<!-- Task Card 2 (With Image) -->
+<div class="bg-surface-container-lowest rounded-xl tonal-layering overflow-hidden group cursor-pointer hover:ring-2 hover:ring-primary/10 transition-all">
+<div class="h-32 bg-slate-200 relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Abstract vibrant geometric design" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCfG4dDbZut4K3GXC77mLK1oIDgSjj_sxEA-qBtFz0HUCXhZnYGVmh4YVzxulHMHi1aph6T_sRtxLHcgHaIJAdVIQm6a6V-i68VP5J9-y2rhM3rnhyghEhIrfSfIl6ITgD5g6mfEEF_HvDqp4bEebSkOutEHABgq_Fiq94tPM83NQjYRe-fIW4O-4b15M65zK1CA2-TcCIqFyw8r9G0Sd1UiDbm0WxDxads6FV-EeDrW6B2rSIc-9e4Sxv34GOgndlCanPjRPP7KaQ"/>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-3">
+<span class="bg-purple-50 text-purple-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Branding</span>
+</div>
+<h4 class="font-bold text-on-surface mb-2">New Iconography Set</h4>
+<div class="flex items-center gap-4 mt-4 text-xs text-secondary">
+<div class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">attach_file</span> 2</div>
+<div class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">event</span> 12 Oct</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: In Progress -->
+<div class="space-y-4">
+<div class="flex items-center justify-between px-2 mb-2">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+<h3 class="font-headline font-bold text-on-surface tracking-tight uppercase text-xs">In Progress</h3>
+<span class="bg-surface-container-high px-2 py-0.5 rounded-md text-[10px] font-bold text-secondary">1</span>
+</div>
+<button class="text-secondary hover:text-on-surface"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl tonal-layering group cursor-pointer hover:ring-2 hover:ring-primary/10 transition-all">
+<div class="flex justify-between items-start mb-3">
+<span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Dev</span>
+</div>
+<h4 class="font-bold text-on-surface mb-2">Core Component Migration</h4>
+<div class="w-full bg-slate-100 h-1.5 rounded-full mt-4 mb-2 overflow-hidden">
+<div class="bg-primary h-full w-[65%]"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-bold text-secondary">
+<span>65% COMPLETE</span>
+<div class="w-6 h-6 rounded-full overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Male developer avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuD0JejhiYmvoiDwozdDJ9PVAkBCg7eSysLbT3sjqZt3s7bQ7Bso3eLtk23SWlNKCjqXLdq4ZOJ8YbZrCQN81HrAzX2FlbqufvbQxVVvYbTyriq_uYpBIT4dMMuwsdv2Z53Fji-ExPAbIMqlUmHKuvBDI0vUToK_3n2EKM0NX0klV6LcHh7SiQef08Y49WWhFTJ4SGg1MSIVWr5UiVlwlX6K_7prN6fOvnf2ObwUX6wdT4p4lMdxgNmAGUQirYy-vxuIAOS0wFO7Y"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Review -->
+<div class="space-y-4">
+<div class="flex items-center justify-between px-2 mb-2">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+<h3 class="font-headline font-bold text-on-surface tracking-tight uppercase text-xs">Review</h3>
+<span class="bg-surface-container-high px-2 py-0.5 rounded-md text-[10px] font-bold text-secondary">2</span>
+</div>
+<button class="text-secondary hover:text-on-surface"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl tonal-layering group cursor-pointer hover:ring-2 hover:ring-primary/10 transition-all">
+<div class="flex justify-between items-start mb-3">
+<span class="bg-amber-50 text-amber-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Quality</span>
+</div>
+<h4 class="font-bold text-on-surface mb-2">Accessibility Audit - Stage 1</h4>
+<div class="flex items-center gap-2 mt-4">
+<span class="material-symbols-outlined text-amber-400 text-sm">warning</span>
+<span class="text-xs text-amber-700 font-medium">3 issues pending</span>
+</div>
+</div>
+</div>
+<!-- Column: Done -->
+<div class="space-y-4">
+<div class="flex items-center justify-between px-2 mb-2">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<h3 class="font-headline font-bold text-on-surface tracking-tight uppercase text-xs">Done</h3>
+<span class="bg-surface-container-high px-2 py-0.5 rounded-md text-[10px] font-bold text-secondary">8</span>
+</div>
+<button class="text-secondary hover:text-on-surface"><span class="material-symbols-outlined text-lg">more_horiz</span></button>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl tonal-layering opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<span class="bg-slate-100 text-slate-500 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Legal</span>
+</div>
+<h4 class="font-bold text-on-surface mb-2 line-through">Privacy Policy Update</h4>
+<div class="flex items-center gap-2 text-emerald-600 text-[10px] font-bold">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+                            COMPLETED OCT 1
+                        </div>
+</div>
+</div>
+</div>
+<!-- List View Section (Visualized as a secondary block) -->
+<div class="mt-16">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline text-2xl font-bold text-on-surface">Detailed View</h2>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-slate-200 rounded-lg text-secondary transition-colors"><span class="material-symbols-outlined">filter_list</span></button>
+<button class="p-2 hover:bg-slate-200 rounded-lg text-secondary transition-colors"><span class="material-symbols-outlined">sort</span></button>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-2xl tonal-layering overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="px-6 py-4 font-headline text-xs font-bold text-secondary uppercase tracking-wider">Task Name</th>
+<th class="px-6 py-4 font-headline text-xs font-bold text-secondary uppercase tracking-wider">Assignee</th>
+<th class="px-6 py-4 font-headline text-xs font-bold text-secondary uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 font-headline text-xs font-bold text-secondary uppercase tracking-wider">Due Date</th>
+<th class="px-6 py-4"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-300">drag_indicator</span>
+<span class="font-semibold text-on-surface">Typography Grid Layout</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of lead designer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG6dM5XmowkxwO3E6MXAuaODflJQ4FPnKUdqrnTjcsbAqV-EoF8qduRYmGBAF4b2YXGOWd2fp-Kdkgt0MiiRvxq5zJmFzHNzX-0u6jABaGHoJ5gA169mm__msFuJ-OC6F2_oe9RmS7Y3bHELU2wxmoRE8T2UdRxO0822CKNRUArclGwgkjmSx75yALQ2cqsVtOiUKes6FEz7bYlXfEQKMmRZiiLQkN9_TYEdVRNfI-IwS3NK6BeE_5uTiCLE4bINDZA-wLiN6P_vk"/>
+</div>
+<span class="text-sm font-medium">Sarah Miller</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">In Progress</span>
+</td>
+<td class="px-6 py-4 text-sm text-secondary">Oct 24, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-300 hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-300">drag_indicator</span>
+<span class="font-semibold text-on-surface">API Endpoint Refactoring</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-[10px] font-bold">JD</div>
+<span class="text-sm font-medium">John Doe</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">To Do</span>
+</td>
+<td class="px-6 py-4 text-sm text-secondary">Oct 30, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-300 hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-300">drag_indicator</span>
+<span class="font-semibold text-on-surface">User Feedback Analysis</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of product manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeS-4OE5HV7ZJBeqP0irNcI_FgdR8WRTQ1k6hoiJ76e2fS-WJQRr6ct__EcM1Tr1Opw_FgSH6IGRrzqJEscgliPJClkM4kP7Zl9c25F_cbGPGejkCt-HBwOzIx7HYZ8r5vO1f7dzWq7yMriP60W9b0X7rWaouYiCMxgkvl1o3JciB6EHrQsICtaZH3L1iOE2-HFCQcWNvsx0agnxzBe25XZ4qvc-oP3fM2HowuMTv6G-qUf7Moi2m0bEurn7VVfwXzz5w3kj0OHFc"/>
+</div>
+<span class="text-sm font-medium">Marcus Chen</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">Done</span>
+</td>
+<td class="px-6 py-4 text-sm text-secondary">Oct 18, 2023</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-300 hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+</body></html>

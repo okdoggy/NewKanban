@@ -1,0 +1,43 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      MONGODB_URI: mongodb://mongo:27017/newkanban
+      MONGODB_DB: newkanban
+      WORKSPACE_ID: design-studio
+      DEMO_OWNER_EMAIL: owner@newkanban.local
+      DEMO_OWNER_PASSWORD: Admin123!
+      DEMO_OWNER_NAME: Workspace Owner
+      APP_ISSUER: NewKanban
+      S3_REGION: ""
+      S3_BUCKET: ""
+      S3_ENDPOINT: ""
+      S3_PUBLIC_BASE_URL: ""
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads_data:/app/public/uploads
+
+volumes:
+  mongo_data:
+  uploads_data:

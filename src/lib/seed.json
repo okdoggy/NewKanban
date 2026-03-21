@@ -1,0 +1,314 @@
+{
+  "id": "design-studio",
+  "name": "Design Studio",
+  "workspaceKey": "VISUALAI MAIN TG",
+  "description": "Realtime collaborative planning for product, design, and engineering squads.",
+  "sprintProgress": 64,
+  "weeklyCapacity": 84,
+  "tasks": [
+    {
+      "id": "task-design-system-audit",
+      "title": "Design System Audit",
+      "description": "Unify tokens, spacing, and editorial hierarchy before the client demo.",
+      "status": "todo",
+      "priority": "high",
+      "label": "Design",
+      "assigneeName": "Sarah Miller",
+      "assigneeColor": "#f97316",
+      "startDate": "2026-03-18",
+      "dueDate": "2026-03-25",
+      "progress": 18,
+      "commentsCount": 2,
+      "updatesCount": 2,
+      "checklistDone": 1,
+      "checklistTotal": 5,
+      "comments": [
+        {
+          "id": "comment-design-1",
+          "authorName": "Sarah Miller",
+          "authorColor": "#f97316",
+          "body": "Need a calmer sidebar active state before we lock the release candidate.",
+          "createdAt": "2026-03-20T06:12:00.000Z"
+        },
+        {
+          "id": "comment-design-2",
+          "authorName": "Marcus Lee",
+          "authorColor": "#ec4899",
+          "body": "Spacing looks good. Let’s keep the no-line rule across all detail cards.",
+          "createdAt": "2026-03-20T07:40:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-17T08:00:00.000Z",
+      "updatedAt": "2026-03-20T11:20:00.000Z"
+    },
+    {
+      "id": "task-core-collaboration-api",
+      "title": "Core Collaboration API",
+      "description": "Finalize the persistence contract and broadcast mutations across active sessions.",
+      "status": "progress",
+      "priority": "high",
+      "label": "Dev",
+      "assigneeName": "John Doe",
+      "assigneeColor": "#2563eb",
+      "startDate": "2026-03-17",
+      "dueDate": "2026-03-28",
+      "progress": 65,
+      "commentsCount": 2,
+      "updatesCount": 5,
+      "checklistDone": 4,
+      "checklistTotal": 6,
+      "comments": [
+        {
+          "id": "comment-api-1",
+          "authorName": "John Doe",
+          "authorColor": "#2563eb",
+          "body": "Realtime mutation payload is stable. Next step is better presence fan-out.",
+          "createdAt": "2026-03-20T08:30:00.000Z"
+        },
+        {
+          "id": "comment-api-2",
+          "authorName": "Elena Park",
+          "authorColor": "#22c55e",
+          "body": "Please keep task updates idempotent so reconnects do not duplicate activity.",
+          "createdAt": "2026-03-20T09:05:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-16T10:15:00.000Z",
+      "updatedAt": "2026-03-20T12:30:00.000Z"
+    },
+    {
+      "id": "task-live-sync-qa",
+      "title": "Live Sync QA Sweep",
+      "description": "Verify presence, optimistic updates, and multi-device reconciliation before rollout.",
+      "status": "review",
+      "priority": "medium",
+      "label": "Quality",
+      "assigneeName": "Elena Park",
+      "assigneeColor": "#22c55e",
+      "startDate": "2026-03-20",
+      "dueDate": "2026-03-24",
+      "progress": 82,
+      "commentsCount": 1,
+      "updatesCount": 4,
+      "checklistDone": 5,
+      "checklistTotal": 6,
+      "comments": [
+        {
+          "id": "comment-qa-1",
+          "authorName": "Elena Park",
+          "authorColor": "#22c55e",
+          "body": "Multi-device sync is stable, but we still need a drag scenario in board mode.",
+          "createdAt": "2026-03-20T10:22:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-19T03:20:00.000Z",
+      "updatedAt": "2026-03-20T13:00:00.000Z"
+    },
+    {
+      "id": "task-launch-checklist",
+      "title": "Launch Checklist",
+      "description": "Finalize runbook, health checks, and rollout notes for the shared workspace release.",
+      "status": "done",
+      "priority": "low",
+      "label": "Ops",
+      "assigneeName": "Lia Vance",
+      "assigneeColor": "#a855f7",
+      "startDate": "2026-03-10",
+      "dueDate": "2026-03-19",
+      "progress": 100,
+      "commentsCount": 1,
+      "updatesCount": 6,
+      "checklistDone": 6,
+      "checklistTotal": 6,
+      "comments": [
+        {
+          "id": "comment-launch-1",
+          "authorName": "Lia Vance",
+          "authorColor": "#a855f7",
+          "body": "Health check and rollback notes are ready for launch day.",
+          "createdAt": "2026-03-19T18:42:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-09T07:00:00.000Z",
+      "updatedAt": "2026-03-19T19:00:00.000Z"
+    },
+    {
+      "id": "task-whiteboard-heuristics",
+      "title": "Whiteboard Heuristics Pass",
+      "description": "Improve note hierarchy, connector hints, and collaboration affordances for ideation mode.",
+      "status": "todo",
+      "priority": "medium",
+      "label": "Research",
+      "assigneeName": "Marcus Lee",
+      "assigneeColor": "#ec4899",
+      "startDate": "2026-03-21",
+      "dueDate": "2026-03-29",
+      "progress": 12,
+      "commentsCount": 1,
+      "updatesCount": 1,
+      "checklistDone": 0,
+      "checklistTotal": 4,
+      "comments": [
+        {
+          "id": "comment-whiteboard-1",
+          "authorName": "Marcus Lee",
+          "authorColor": "#ec4899",
+          "body": "Would love draggable note clusters and a stronger edit flow next.",
+          "createdAt": "2026-03-20T05:50:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-18T14:00:00.000Z",
+      "updatedAt": "2026-03-20T10:42:00.000Z"
+    },
+    {
+      "id": "task-calendar-automation",
+      "title": "Calendar Automation Hooks",
+      "description": "Sync sprint milestones into the project calendar and team agenda surfaces.",
+      "status": "progress",
+      "priority": "medium",
+      "label": "Platform",
+      "assigneeName": "David Kim",
+      "assigneeColor": "#0f766e",
+      "startDate": "2026-03-18",
+      "dueDate": "2026-03-27",
+      "progress": 47,
+      "commentsCount": 1,
+      "updatesCount": 3,
+      "checklistDone": 2,
+      "checklistTotal": 5,
+      "comments": [
+        {
+          "id": "comment-calendar-1",
+          "authorName": "David Kim",
+          "authorColor": "#0f766e",
+          "body": "Shared calendar now needs better editing hooks from the board view.",
+          "createdAt": "2026-03-20T04:30:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-17T12:45:00.000Z",
+      "updatedAt": "2026-03-20T09:55:00.000Z"
+    }
+  ],
+  "notes": [
+    {
+      "id": "note-persona-v2",
+      "title": "User Persona V2",
+      "content": "Defining the primary interaction model for the cross-device collaboration flow.",
+      "tag": "Initial Draft",
+      "x": 72,
+      "y": 48,
+      "color": "#ffffff",
+      "assigneeName": "Marcus Lee",
+      "assigneeColor": "#ec4899",
+      "createdAt": "2026-03-18T09:20:00.000Z",
+      "updatedAt": "2026-03-20T11:10:00.000Z"
+    },
+    {
+      "id": "note-ai-logic-node",
+      "title": "AI Logic Node",
+      "content": "Processes incoming state changes and fans out updates to all connected clients.",
+      "tag": "System Map",
+      "x": 340,
+      "y": 290,
+      "color": "#4865d3",
+      "assigneeName": "Elena Park",
+      "assigneeColor": "#22c55e",
+      "createdAt": "2026-03-18T11:00:00.000Z",
+      "updatedAt": "2026-03-20T12:02:00.000Z"
+    },
+    {
+      "id": "note-capacity",
+      "title": "Capacity Insight",
+      "content": "If handoff latency increases, shift review capacity into async checkpoints.",
+      "tag": "Ops Note",
+      "x": 600,
+      "y": 164,
+      "color": "#fff0a8",
+      "assigneeName": "David Kim",
+      "assigneeColor": "#0f766e",
+      "createdAt": "2026-03-19T08:00:00.000Z",
+      "updatedAt": "2026-03-20T08:55:00.000Z"
+    }
+  ],
+  "whiteboardScene": null,
+  "agenda": [
+    {
+      "id": "event-standup",
+      "title": "Morning Standup",
+      "start": "2026-03-20T09:00:00+09:00",
+      "end": "2026-03-20T09:30:00+09:00",
+      "type": "ongoing",
+      "relatedTaskId": "task-core-collaboration-api",
+      "attendees": 6,
+      "link": "https://zoom.us/j/8273001"
+    },
+    {
+      "id": "event-api-check",
+      "title": "API Integration Check",
+      "start": "2026-03-20T11:00:00+09:00",
+      "end": "2026-03-20T12:00:00+09:00",
+      "type": "upcoming",
+      "relatedTaskId": "task-core-collaboration-api",
+      "attendees": 4,
+      "location": "Focus Room A"
+    },
+    {
+      "id": "event-qa-session",
+      "title": "QA Debugging Session",
+      "start": "2026-03-20T14:00:00+09:00",
+      "end": "2026-03-20T16:00:00+09:00",
+      "type": "afternoon",
+      "relatedTaskId": "task-live-sync-qa",
+      "attendees": 5,
+      "location": "War Room"
+    },
+    {
+      "id": "event-demo-rehearsal",
+      "title": "Demo Rehearsal",
+      "start": "2026-03-23T17:30:00+09:00",
+      "end": "2026-03-23T18:15:00+09:00",
+      "type": "milestone",
+      "relatedTaskId": "task-launch-checklist",
+      "attendees": 7,
+      "location": "Atrium Stage"
+    }
+  ],
+  "activity": [
+    {
+      "id": "activity-1",
+      "actorName": "John Doe",
+      "actorColor": "#2563eb",
+      "action": "updated",
+      "entityType": "task",
+      "entityTitle": "Core Collaboration API",
+      "createdAt": "2026-03-20T12:48:00.000Z"
+    },
+    {
+      "id": "activity-2",
+      "actorName": "Sarah Miller",
+      "actorColor": "#f97316",
+      "action": "commented on",
+      "entityType": "task",
+      "entityTitle": "Design System Audit",
+      "createdAt": "2026-03-20T11:18:00.000Z"
+    },
+    {
+      "id": "activity-3",
+      "actorName": "Marcus Lee",
+      "actorColor": "#ec4899",
+      "action": "added",
+      "entityType": "note",
+      "entityTitle": "User Persona V2",
+      "createdAt": "2026-03-20T09:22:00.000Z"
+    },
+    {
+      "id": "activity-4",
+      "actorName": "Lia Vance",
+      "actorColor": "#a855f7",
+      "action": "completed",
+      "entityType": "task",
+      "entityTitle": "Launch Checklist",
+      "createdAt": "2026-03-19T19:10:00.000Z"
+    }
+  ]
+}

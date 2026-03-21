@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gantt Chart - VisualAI Group</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed": "#dde1ff",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-bright": "#f7f9fb",
+                        "surface-container": "#eceef0",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#191c1e",
+                        "tertiary-container": "#bc4800",
+                        "background": "#f7f9fb",
+                        "surface": "#f7f9fb",
+                        "on-tertiary-fixed-variant": "#7d2d00",
+                        "tertiary": "#943700",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#b8c4ff",
+                        "on-tertiary-container": "#ffede6",
+                        "surface-tint": "#3755c3",
+                        "inverse-surface": "#2d3133",
+                        "primary-fixed-dim": "#b8c4ff",
+                        "on-primary-fixed-variant": "#173bab",
+                        "on-secondary-fixed": "#0b1c30",
+                        "outline-variant": "#c3c6d7",
+                        "on-secondary-container": "#54647a",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#001453",
+                        "on-primary-container": "#efefff",
+                        "surface-variant": "#e0e3e5",
+                        "secondary-container": "#d0e1fb",
+                        "error-container": "#ffdad6",
+                        "surface-dim": "#d8dadc",
+                        "on-secondary": "#ffffff",
+                        "primary": "#2b4bb9",
+                        "on-surface-variant": "#434655",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#ffb596",
+                        "tertiary-fixed": "#ffdbcd",
+                        "on-tertiary-fixed": "#360f00",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-background": "#191c1e",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#505f76",
+                        "primary-container": "#4865d3",
+                        "surface-container-low": "#f2f4f6",
+                        "outline": "#737686",
+                        "secondary-fixed": "#d3e4fe"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .gantt-grid {
+            background-image: linear-gradient(to right, #e0e3e5 1px, transparent 1px),
+                              linear-gradient(to bottom, #e0e3e5 1px, transparent 1px);
+            background-size: 100px 48px;
+        }
+        .tonal-layering {
+            background: linear-gradient(180deg, rgba(242, 244, 246, 0.8) 0%, rgba(236, 238, 240, 1) 100%);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased overflow-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 flex items-center justify-between px-6 h-16 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none font-manrope tracking-tight font-semibold">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900 dark:text-slate-100">VisualAI Group</span>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors" href="#">Workspaces</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors" href="#">Teams</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors" href="#">Activity</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-48" placeholder="Search..." type="text"/>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary-container transition-all active:scale-95 duration-150">Invite</button>
+<div class="flex items-center gap-2 ml-2">
+<button class="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full">
+<span class="material-symbols-outlined text-slate-600">notifications</span>
+</button>
+<button class="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full">
+<span class="material-symbols-outlined text-slate-600">settings</span>
+</button>
+<img alt="User Profile Avatar" class="w-8 h-8 rounded-full ml-2 object-cover" data-alt="User profile avatar smiling headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9JbV5LugD3p8CBYyEZLO16X0H4WuOF41mdas8oJar0HY8NN0sGU6axfJONeN8KEnzBX-kpEeDhPOv3dIn7T_ByGpoEMc5wZcZc-zk4sRvOF-YkY9Mf2k0lulcpzAfeh0FFBpkfuVHL-mmH86wKFe2TbR4mOxWx1RmoquNIG0tSYbViLt2pG7Z7-lVzt_ShUT70poh2jhQUHjfEcFiFXe69aehC0K7IAdTBrQ02g3_WzMfM0Vbt4eyKZkNWQydAE8XoQTh8tN1meY"/>
+</div>
+</div>
+</nav>
+<div class="flex h-screen pt-16">
+<!-- SideNavBar -->
+<aside class="flex flex-col h-full py-4 h-screen w-64 bg-slate-50 dark:bg-slate-950 font-inter text-sm font-medium tonal-layering">
+<div class="px-6 mb-6">
+<div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-outline-variant/10">
+<div class="w-10 h-10 bg-primary-fixed rounded-xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dataset</span>
+</div>
+<div>
+<div class="font-manrope font-bold text-lg leading-tight text-slate-900 dark:text-slate-100">Design Studio</div>
+<div class="text-[10px] text-slate-500 uppercase tracking-widest">VisualAI Main TG</div>
+</div>
+</div>
+</div>
+<div class="flex-1 space-y-1">
+<a class="text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 flex items-center gap-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span> Overview
+                </a>
+<a class="text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 flex items-center gap-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined">view_kanban</span> Kanban
+                </a>
+<a class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl mx-2 px-4 py-2 flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">timeline</span> Gantt
+                </a>
+<a class="text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 flex items-center gap-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined">calendar_month</span> Calendar
+                </a>
+<a class="text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 flex items-center gap-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined">polyline</span> WhiteBoard
+                </a>
+</div>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-slate-200 dark:shadow-none hover:scale-[1.02] active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">add</span> New Task
+                </button>
+<div class="pt-4 border-t border-outline-variant/20 space-y-1">
+<a class="text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 flex items-center gap-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined">archive</span> Archive
+                    </a>
+<a class="text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 flex items-center gap-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined">delete</span> Trash
+                    </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col bg-surface overflow-hidden">
+<!-- Header section with high whitespace -->
+<header class="px-12 py-8 flex items-end justify-between">
+<div>
+<h1 class="text-4xl font-headline font-extrabold tracking-tighter text-on-surface">Timeline View</h1>
+<p class="text-on-surface-variant font-medium mt-1">Project: Vision System v2.0</p>
+</div>
+<div class="flex gap-3">
+<div class="flex bg-surface-container rounded-full p-1 shadow-inner">
+<button class="px-6 py-2 rounded-full text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Days</button>
+<button class="px-6 py-2 rounded-full text-sm font-bold bg-white text-primary shadow-sm">Weeks</button>
+<button class="px-6 py-2 rounded-full text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Months</button>
+</div>
+<button class="p-3 bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/10 hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</header>
+<!-- Gantt Workspace -->
+<div class="flex-1 mx-12 mb-12 bg-surface-container-lowest rounded-[2rem] shadow-2xl shadow-primary/5 border border-outline-variant/10 overflow-hidden flex flex-col">
+<!-- Timeline Header -->
+<div class="h-20 border-b border-outline-variant/20 flex">
+<div class="w-80 border-r border-outline-variant/20 flex items-center px-8 font-headline font-bold text-on-surface uppercase tracking-wider text-xs">
+                        Task List
+                    </div>
+<div class="flex-1 overflow-x-auto hide-scrollbar">
+<div class="flex h-full min-w-[2000px]">
+<!-- Mock weeks -->
+<div class="w-[400px] border-r border-outline-variant/10 flex flex-col items-center justify-center text-sm font-medium text-on-surface-variant bg-surface-container-low/30">
+                                Week 1 (Oct 1 - Oct 7)
+                            </div>
+<div class="w-[400px] border-r border-outline-variant/10 flex flex-col items-center justify-center text-sm font-bold text-primary bg-primary-fixed/20">
+                                Week 2 (Oct 8 - Oct 14)
+                            </div>
+<div class="w-[400px] border-r border-outline-variant/10 flex flex-col items-center justify-center text-sm font-medium text-on-surface-variant">
+                                Week 3 (Oct 15 - Oct 21)
+                            </div>
+<div class="w-[400px] border-r border-outline-variant/10 flex flex-col items-center justify-center text-sm font-medium text-on-surface-variant">
+                                Week 4 (Oct 22 - Oct 28)
+                            </div>
+<div class="w-[400px] border-r border-outline-variant/10 flex flex-col items-center justify-center text-sm font-medium text-on-surface-variant">
+                                Week 5 (Oct 29 - Nov 4)
+                            </div>
+</div>
+</div>
+</div>
+<!-- Main Gantt Body -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Task Sidebar -->
+<div class="w-80 border-r border-outline-variant/20 overflow-y-auto">
+<div class="divide-y divide-outline-variant/10">
+<!-- Task Row -->
+<div class="h-16 px-8 flex flex-col justify-center hover:bg-surface-container-low transition-colors group cursor-pointer">
+<span class="text-sm font-bold text-on-surface">System Architecture</span>
+<span class="text-[11px] text-on-surface-variant">Oct 1 - Oct 12</span>
+</div>
+<!-- Task Row -->
+<div class="h-16 px-8 flex flex-col justify-center bg-primary-fixed/10 border-l-4 border-primary">
+<span class="text-sm font-bold text-on-surface">UI Component Library</span>
+<span class="text-[11px] text-on-surface-variant">Oct 8 - Oct 22</span>
+</div>
+<!-- Task Row -->
+<div class="h-16 px-8 flex flex-col justify-center hover:bg-surface-container-low transition-colors group cursor-pointer">
+<span class="text-sm font-bold text-on-surface">Data Integration Layer</span>
+<span class="text-[11px] text-on-surface-variant">Oct 15 - Oct 29</span>
+</div>
+<!-- Task Row -->
+<div class="h-16 px-8 flex flex-col justify-center hover:bg-surface-container-low transition-colors group cursor-pointer">
+<span class="text-sm font-bold text-on-surface">Mobile Responsiveness</span>
+<span class="text-[11px] text-on-surface-variant">Oct 20 - Nov 5</span>
+</div>
+<!-- Task Row -->
+<div class="h-16 px-8 flex flex-col justify-center hover:bg-surface-container-low transition-colors group cursor-pointer">
+<span class="text-sm font-bold text-on-surface">Final QA &amp; Launch</span>
+<span class="text-[11px] text-on-surface-variant">Nov 2 - Nov 12</span>
+</div>
+</div>
+</div>
+<!-- Gantt Chart Timeline Content -->
+<div class="flex-1 overflow-auto relative">
+<div class="min-w-[2000px] h-full gantt-grid opacity-30"></div>
+<!-- Timeline Overlays -->
+<div class="absolute top-0 left-0 min-w-[2000px] w-full h-full pointer-events-none">
+<!-- Task Bar 1 -->
+<div class="absolute top-4 left-0 w-[300px] h-8 bg-secondary-container rounded-lg border border-secondary/20 flex items-center px-3 shadow-sm pointer-events-auto cursor-move">
+<span class="text-[10px] font-bold text-secondary uppercase tracking-tight">Completed</span>
+</div>
+<!-- Task Bar 2 (Active) -->
+<div class="absolute top-20 left-[240px] w-[450px] h-8 bg-gradient-to-r from-primary to-primary-container rounded-lg shadow-lg flex items-center justify-between px-3 pointer-events-auto cursor-move border border-primary/20">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold text-white uppercase tracking-tight">In Progress</span>
+<div class="w-12 h-1 bg-white/20 rounded-full overflow-hidden">
+<div class="w-3/4 h-full bg-white"></div>
+</div>
+</div>
+<div class="flex -space-x-1">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-primary shadow-sm object-cover" data-alt="Team member portrait headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDNuzoQhewJ2T3iI2IDxda-oFt9mkKl40lPOs-WN9t5p1rhEZqxgDPEW3Fr39Fuy02fq_OmPgk5SaMw6JSrBHSOAj-r1HY_t7d37t_cDyw2AvMOs9vEoks2WMvfi8UqtTD5L2zOJOZunOyj7mjPEJb62m2NCI0FjpgeibLzhYKMIlBPwXYVnDQEbUv9eGecEeZdoEPTOf9QFlifzQpJ9f120JI13ZDYLbRpZPKWF5akKJwnS1vDO2AordRfltwWuxFZfu2-LxmVME"/>
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-primary shadow-sm object-cover" data-alt="Team member portrait headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj4Dn3joiuyh3PXKEDtKAEGnggaLdwx9IdFh7tWjn4URfukwFMWksX2pLhFxOMaMhKwxb-CK8zPpnc8JfkMNkeroPsdBoJt3SlXzAdojbEwOn_j2G07V5XxcY0Ax_dJqzA3bjxLAe73ZVgEAkc-iZlYMVkpfysNrIN8ko2D-aqYFE1ijbvqsl1U8-5lE0g-qCsIZ0E00r3LKPFeVQYJTm32xUUgAKfuTU1KZQUzAd3RS-QnNeEB-qLYVx04NYgeYZN8MJYxR9lsjk"/>
+</div>
+</div>
+<!-- Dependency Arrow 1 to 2 -->
+<svg class="absolute top-0 left-0 w-full h-full pointer-events-none" style="filter: drop-shadow(0 2px 4px rgba(43,75,185,0.1))">
+<path d="M 300 20 L 320 20 L 320 96 L 240 96" fill="none" marker-end="url(#arrowhead)" stroke="#2b4bb9" stroke-dasharray="4 4" stroke-width="2"></path>
+<defs>
+<marker id="arrowhead" markerheight="6" markerwidth="6" orient="auto" refx="5" refy="3">
+<polygon fill="#2b4bb9" points="0 0, 6 3, 0 6"></polygon>
+</marker>
+</defs>
+</svg>
+<!-- Task Bar 3 -->
+<div class="absolute top-36 left-[580px] w-[500px] h-8 bg-surface-container-high rounded-lg border border-outline-variant/30 flex items-center px-3 pointer-events-auto cursor-move">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-tight">Upcoming</span>
+</div>
+<!-- Dependency Arrow 2 to 3 -->
+<svg class="absolute top-0 left-0 w-full h-full pointer-events-none">
+<path d="M 690 96 L 720 96 L 720 160 L 580 160" fill="none" marker-end="url(#arrowhead-gray)" stroke="#737686" stroke-dasharray="4 4" stroke-width="2"></path>
+<defs>
+<marker id="arrowhead-gray" markerheight="6" markerwidth="6" orient="auto" refx="5" refy="3">
+<polygon fill="#737686" points="0 0, 6 3, 0 6"></polygon>
+</marker>
+</defs>
+</svg>
+<!-- Task Bar 4 -->
+<div class="absolute top-52 left-[800px] w-[350px] h-8 bg-surface-container-high rounded-lg border border-outline-variant/30 flex items-center px-3 pointer-events-auto cursor-move">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-tight">Planned</span>
+</div>
+<!-- Task Bar 5 -->
+<div class="absolute top-68 left-[1200px] w-[200px] h-8 bg-tertiary-fixed rounded-lg border border-tertiary/20 flex items-center px-3 pointer-events-auto cursor-move">
+<span class="text-[10px] font-bold text-tertiary uppercase tracking-tight">Critical</span>
+</div>
+<!-- Today Indicator -->
+<div class="absolute top-0 left-[480px] h-full w-[2px] bg-primary z-10">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] px-2 py-0.5 rounded-full font-bold shadow-lg">TODAY</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Status Footer -->
+<div class="h-12 border-t border-outline-variant/10 px-8 flex items-center justify-between bg-surface-container-low/50">
+<div class="flex items-center gap-6 text-xs font-medium text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary-container"></span> Done
+                        </div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span> Current
+                        </div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-surface-container-high"></span> To-Do
+                        </div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-tertiary-fixed"></span> High Risk
+                        </div>
+</div>
+<div class="flex items-center gap-4 text-xs font-bold text-primary">
+<button class="hover:underline">Export CSV</button>
+<button class="hover:underline">Print PDF</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Floating Action Button for focused actions (Suppressed as per rules on detail/task pages, but showing intent for dashboard-level if this were treated as a primary task list) -->
+<button class="fixed bottom-10 right-10 w-14 h-14 bg-primary rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+</body></html>

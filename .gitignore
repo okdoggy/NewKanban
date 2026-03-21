@@ -36,6 +36,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local agent/runtime state
+.omx/
+
+# runtime uploads
+public/uploads/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VisualAI Group - Calendar &amp; Agenda</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#dde1ff",
+              "surface-container-high": "#e6e8ea",
+              "surface-bright": "#f7f9fb",
+              "surface-container": "#eceef0",
+              "inverse-on-surface": "#eff1f3",
+              "surface-container-lowest": "#ffffff",
+              "on-surface": "#191c1e",
+              "tertiary-container": "#bc4800",
+              "background": "#f7f9fb",
+              "surface": "#f7f9fb",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "tertiary": "#943700",
+              "on-secondary-fixed-variant": "#38485d",
+              "secondary-fixed-dim": "#b7c8e1",
+              "on-error": "#ffffff",
+              "on-primary": "#ffffff",
+              "inverse-primary": "#b8c4ff",
+              "on-tertiary-container": "#ffede6",
+              "surface-tint": "#3755c3",
+              "inverse-surface": "#2d3133",
+              "primary-fixed-dim": "#b8c4ff",
+              "on-primary-fixed-variant": "#173bab",
+              "on-secondary-fixed": "#0b1c30",
+              "outline-variant": "#c3c6d7",
+              "on-secondary-container": "#54647a",
+              "on-error-container": "#93000a",
+              "on-primary-fixed": "#001453",
+              "on-primary-container": "#efefff",
+              "surface-variant": "#e0e3e5",
+              "secondary-container": "#d0e1fb",
+              "error-container": "#ffdad6",
+              "surface-dim": "#d8dadc",
+              "on-secondary": "#ffffff",
+              "primary": "#2b4bb9",
+              "on-surface-variant": "#434655",
+              "error": "#ba1a1a",
+              "tertiary-fixed-dim": "#ffb596",
+              "tertiary-fixed": "#ffdbcd",
+              "on-tertiary-fixed": "#360f00",
+              "surface-container-highest": "#e0e3e5",
+              "on-background": "#191c1e",
+              "on-tertiary": "#ffffff",
+              "secondary": "#505f76",
+              "primary-container": "#4865d3",
+              "surface-container-low": "#f2f4f6",
+              "outline": "#737686",
+              "secondary-fixed": "#d3e4fe"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #c3c6d7;
+        border-radius: 10px;
+      }
+    </style>
+</head>
+<body class="bg-background font-body text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none h-16 flex items-center justify-between px-6">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline">VisualAI Group</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-manrope tracking-tight font-semibold" href="#">Workspaces</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-manrope tracking-tight font-semibold" href="#">Teams</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-manrope tracking-tight font-semibold" href="#">Activity</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-slate-100/50 dark:bg-slate-800/50 border-none rounded-full text-sm focus:ring-2 focus:ring-primary/20 w-64" placeholder="Search workspace..." type="text"/>
+</div>
+<button class="px-4 py-1.5 bg-primary text-white rounded-full font-semibold text-sm hover:opacity-90 transition-all scale-95 active:scale-90 duration-150">Invite</button>
+<div class="flex items-center gap-2 ml-2">
+<button class="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full">
+<span class="material-symbols-outlined text-slate-600">notifications</span>
+</button>
+<button class="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full">
+<span class="material-symbols-outlined text-slate-600">settings</span>
+</button>
+</div>
+<img alt="User Profile Avatar" class="w-8 h-8 rounded-full ml-2 border border-slate-200" data-alt="Close up of a professional male user avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdlhn-9r6xKAsHFZKbM1EafCpbmy5hm5OxDmfZ7eltzRJjRslCukUvkYibuOzvJQafv3jTbzZgT4I15ymM_lPBe3AUj2C8txt4G6f5Ga5Hdf1Fc4GMqPrGNhOVNU_nktZ1Ir54yr5M-iLWaWWoZpqEsBdK2sjiPIoeYGxMx1W-wPRAFHVdUOBjEjPNK1iU9BlD5DZ2t1uIe-zTAsu2z_XXAosSCrgO70gJ37fBKfxWaOlFxQ3R9M2GzbeOsU5lEZdtlnSecNIkbOI"/>
+</div>
+</header>
+<div class="flex pt-16 min-h-screen">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-[calc(100vh-64px)] w-64 bg-slate-50 dark:bg-slate-950 py-4 fixed left-0">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded-xl flex items-center justify-center text-white">
+<span class="material-symbols-outlined">design_services</span>
+</div>
+<div>
+<h2 class="font-manrope font-bold text-lg text-slate-900 leading-tight">Design Studio</h2>
+<p class="text-xs text-slate-500 font-medium">VisualAI Main TG</p>
+</div>
+</div>
+<div class="flex-1 space-y-1">
+<a class="flex items-center gap-3 text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">view_kanban</span>
+<span>Kanban</span>
+</a>
+<a class="flex items-center gap-3 text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">timeline</span>
+<span>Gantt</span>
+</a>
+<a class="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl mx-2 px-4 py-2 transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">calendar_month</span>
+<span>Calendar</span>
+</a>
+<a class="flex items-center gap-3 text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">polyline</span>
+<span>WhiteBoard</span>
+</a>
+</div>
+<div class="px-4 mb-4">
+<button class="w-full py-2.5 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl font-semibold shadow-lg shadow-primary/20 flex items-center justify-center gap-2 text-sm scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-sm">add</span>
+                    New Task
+                </button>
+</div>
+<div class="mt-auto pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
+<a class="flex items-center gap-3 text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">archive</span>
+<span>Archive</span>
+</a>
+<a class="flex items-center gap-3 text-slate-600 dark:text-slate-400 mx-2 px-4 py-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-xl transition-all font-inter text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">delete</span>
+<span>Trash</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 p-8 bg-surface">
+<div class="max-w-[1400px] mx-auto">
+<div class="flex flex-col lg:flex-row gap-8">
+<!-- Left Column: Calendar and Detail List -->
+<div class="flex-1 space-y-8">
+<!-- Calendar Header -->
+<div class="flex items-center justify-between">
+<h1 class="text-3xl font-headline font-extrabold text-on-surface tracking-tight">Project Calendar</h1>
+<div class="flex items-center gap-4 bg-surface-container-low p-1.5 rounded-full">
+<button class="p-2 hover:bg-white rounded-full transition-colors"><span class="material-symbols-outlined">chevron_left</span></button>
+<span class="font-headline font-bold px-4">October 2024</span>
+<button class="p-2 hover:bg-white rounded-full transition-colors"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+<!-- Main Calendar Grid -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="grid grid-cols-7 border-b border-outline-variant/10">
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Sun</div>
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Mon</div>
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Tue</div>
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Wed</div>
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Thu</div>
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Fri</div>
+<div class="p-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Sat</div>
+</div>
+<div class="grid grid-cols-7 auto-rows-[120px]">
+<!-- Row 1 -->
+<div class="p-2 border-r border-b border-outline-variant/10 text-slate-300">29</div>
+<div class="p-2 border-r border-b border-outline-variant/10 text-slate-300">30</div>
+<div class="p-2 border-r border-b border-outline-variant/10">1</div>
+<div class="p-2 border-r border-b border-outline-variant/10">2</div>
+<div class="p-2 border-r border-b border-outline-variant/10">
+<span class="text-sm font-medium">3</span>
+<div class="mt-2 space-y-1">
+<div class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded truncate">Design Sync</div>
+</div>
+</div>
+<div class="p-2 border-r border-b border-outline-variant/10">4</div>
+<div class="p-2 border-b border-outline-variant/10">5</div>
+<!-- Row 2 -->
+<div class="p-2 border-r border-b border-outline-variant/10">6</div>
+<div class="p-2 border-r border-b border-outline-variant/10">7</div>
+<div class="p-2 border-r border-b border-outline-variant/10">8</div>
+<div class="p-2 border-r border-b border-outline-variant/10">9</div>
+<div class="p-2 border-r border-b border-outline-variant/10">10</div>
+<div class="p-2 border-r border-b border-outline-variant/10">11</div>
+<div class="p-2 border-b border-outline-variant/10">12</div>
+<!-- Row 3 -->
+<div class="p-2 border-r border-b border-outline-variant/10">13</div>
+<div class="p-2 border-r border-b border-outline-variant/10">
+<span class="text-sm font-medium">14</span>
+<div class="mt-2 space-y-1">
+<div class="text-[10px] bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded truncate">Sprint Review</div>
+<div class="text-[10px] bg-secondary-fixed text-on-secondary-fixed px-2 py-0.5 rounded truncate">User Interview</div>
+</div>
+</div>
+<div class="p-2 border-r border-b border-outline-variant/10">15</div>
+<div class="p-2 border-r border-b border-outline-variant/10 ring-2 ring-primary/20 bg-primary/5 rounded-sm relative">
+<span class="text-sm font-bold text-primary">16</span>
+<div class="mt-2 space-y-1">
+<div class="text-[10px] bg-primary text-white px-2 py-0.5 rounded truncate">Launch UI v2.0</div>
+<div class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded truncate">Team Lunch</div>
+</div>
+<div class="absolute bottom-2 right-2 w-2 h-2 bg-primary rounded-full"></div>
+</div>
+<div class="p-2 border-r border-b border-outline-variant/10">17</div>
+<div class="p-2 border-r border-b border-outline-variant/10">18</div>
+<div class="p-2 border-b border-outline-variant/10">19</div>
+<!-- Row 4 -->
+<div class="p-2 border-r border-b border-outline-variant/10">20</div>
+<div class="p-2 border-r border-b border-outline-variant/10">21</div>
+<div class="p-2 border-r border-b border-outline-variant/10">22</div>
+<div class="p-2 border-r border-b border-outline-variant/10">23</div>
+<div class="p-2 border-r border-b border-outline-variant/10">24</div>
+<div class="p-2 border-r border-b border-outline-variant/10">25</div>
+<div class="p-2 border-b border-outline-variant/10">26</div>
+</div>
+</div>
+<!-- Detail List Section -->
+<section class="space-y-4">
+<div class="flex items-center justify-between">
+<h3 class="font-headline font-bold text-xl">Selected Date: October 16, 2024</h3>
+<button class="text-primary font-semibold text-sm hover:underline">View All Events</button>
+</div>
+<div class="space-y-3">
+<div class="group flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl hover:shadow-md transition-shadow">
+<div class="flex items-center gap-4">
+<div class="w-1.5 h-10 bg-primary rounded-full"></div>
+<div>
+<h4 class="font-bold text-slate-900">Launch UI v2.0 - Dashboard Redesign</h4>
+<p class="text-xs text-slate-500">Scheduled for 09:00 AM • Main Workspace</p>
+</div>
+</div>
+<div class="flex -space-x-2">
+<img alt="Team member" class="w-7 h-7 rounded-full border-2 border-white" data-alt="Headshot of a smiling female designer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKPKaS2hLx17y0QhmS3COSIjsgn0SUhQsJ_12EtjJJ2KY941g5mNUvfByHyMnMxVa27e4sI4wCBTlpTE9XBrr8F656la91xZrhsdgZaLMaaXyE-qXRva5hbFSG6dgaQnY3Qv9usKaxnSpNiYsVV_CuD21egMUeaTn8oLGiQiOmk4xFyDwpKJYovLA_KYJ10_qBUs4PAfIypYBMtHcEs8GP8nKWXzFdVgRtn0ZV9zGJ_XM2YrCPCZwuYeMREOldXEjXvvY10e3ZkwA"/>
+<img alt="Team member" class="w-7 h-7 rounded-full border-2 border-white" data-alt="Headshot of a creative male lead" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGKB6CVnByhf_IDUUhTU-lglSaJa3aA-8psXYBdlW-Wgqkf5to1tgNsrYdy2Ty2awgtSzzlw7jctMbL5EKD7gnvzuHr2VX-nvgwtkqt9dnh_GeIQdPMnpXVeVfpWyHlbuaWJUMSYVanwDeuyBwmvG7PBqhte-LPNRbZ1IFscvvVMv-zIT9CmQbhk0A6jHvonLfyN9P-HeD7RTu_tr3kNfL_UBEI8yG4GETipR0iU9jPT8c9v53uy2ZtRYLnAH0muBJyu2nzd6I-7Q"/>
+<div class="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-500">+3</div>
+</div>
+</div>
+<div class="group flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl hover:shadow-md transition-shadow">
+<div class="flex items-center gap-4">
+<div class="w-1.5 h-10 bg-blue-400 rounded-full"></div>
+<div>
+<h4 class="font-bold text-slate-900">Team Lunch &amp; Celebrate Release</h4>
+<p class="text-xs text-slate-500">Scheduled for 12:30 PM • Atrium Cafe</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">arrow_forward</span>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Today's Agenda Sidebar -->
+<aside class="w-full lg:w-80 space-y-6">
+<!-- Agenda Widget -->
+<div class="bg-surface-container-low rounded-2xl p-6 border border-outline-variant/10">
+<h3 class="font-headline font-extrabold text-xl mb-6">Today's Agenda</h3>
+<div class="relative pl-8 space-y-8 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200">
+<!-- Agenda Item 1 -->
+<div class="relative">
+<div class="absolute -left-[28px] top-1 w-4 h-4 rounded-full bg-white border-4 border-primary ring-4 ring-primary/10"></div>
+<div>
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest">Ongoing</span>
+<h4 class="font-bold text-sm mt-0.5">Morning Standup</h4>
+<p class="text-xs text-slate-500 mt-1">09:00 - 09:30</p>
+</div>
+</div>
+<!-- Agenda Item 2 -->
+<div class="relative">
+<div class="absolute -left-[28px] top-1 w-4 h-4 rounded-full bg-slate-100 border-4 border-slate-300"></div>
+<div>
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coming Up</span>
+<h4 class="font-bold text-sm mt-0.5">API Integration Check</h4>
+<p class="text-xs text-slate-500 mt-1">11:00 - 12:00</p>
+<div class="mt-3 flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+<span class="material-symbols-outlined text-lg text-blue-500">link</span>
+<span class="text-[11px] font-medium text-blue-600 truncate">zoom.us/j/8273...</span>
+</div>
+</div>
+</div>
+<!-- Agenda Item 3 -->
+<div class="relative">
+<div class="absolute -left-[28px] top-1 w-4 h-4 rounded-full bg-slate-100 border-4 border-slate-300"></div>
+<div>
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Afternoon</span>
+<h4 class="font-bold text-sm mt-0.5">QA Debugging Session</h4>
+<p class="text-xs text-slate-500 mt-1">14:00 - 16:00</p>
+</div>
+</div>
+</div>
+<button class="w-full mt-8 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">
+                                Schedule New
+                            </button>
+</div>
+<!-- Mini Stats or Insight -->
+<div class="p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-primary-container mb-2" data-weight="fill">bolt</span>
+<h4 class="font-bold text-lg leading-tight">Weekly Capacity</h4>
+<p class="text-slate-400 text-xs mt-1">You are at 84% capacity this week. Consider delegating tasks.</p>
+<div class="mt-4 h-1.5 w-full bg-white/10 rounded-full">
+<div class="h-full w-[84%] bg-primary-container rounded-full"></div>
+</div>
+</div>
+<!-- Abstract decorative shape -->
+<div class="absolute -right-10 -bottom-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl"></div>
+</div>
+</aside>
+</div>
+</div>
+</main>
+</div>
+</body></html>

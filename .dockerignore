@@ -1,0 +1,8 @@
+node_modules
+.next
+bootstrapapp
+.git
+.omx
+concept
+npm-debug.log*
+.env*

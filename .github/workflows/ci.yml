@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval \"db.adminCommand('ping').ok\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Start app
+        env:
+          NODE_ENV: production
+          PORT: 3000
+          HOSTNAME: 127.0.0.1
+          MONGODB_URI: mongodb://127.0.0.1:27017/newkanban
+          MONGODB_DB: newkanban
+          WORKSPACE_ID: design-studio
+          DEMO_OWNER_EMAIL: owner@newkanban.local
+          DEMO_OWNER_PASSWORD: Admin123!
+          DEMO_OWNER_NAME: Workspace Owner
+        run: |
+          npm run start > app.log 2>&1 &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/bootstrap || true)
+            if [ "$code" = "401" ] || [ "$code" = "200" ]; then
+              break
+            fi
+            sleep 2
+          done
+      - name: Run view smoke QA
+        env:
+          QA_BASE_URL: http://127.0.0.1:3000
+          DEMO_OWNER_EMAIL: owner@newkanban.local
+          DEMO_OWNER_PASSWORD: Admin123!
+        run: npm run qa:views
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Docker compose smoke
+        run: |
+          docker compose up --build -d
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/bootstrap || true)
+            if [ "$code" = "401" ] || [ "$code" = "200" ]; then
+              break
+            fi
+            sleep 3
+          done
+      - name: Run view smoke against Docker app
+        env:
+          QA_BASE_URL: http://127.0.0.1:3000
+          DEMO_OWNER_EMAIL: owner@newkanban.local
+          DEMO_OWNER_PASSWORD: Admin123!
+        run: npm run qa:views
+      - name: Tear down docker
+        if: always()
+        run: docker compose down -v
