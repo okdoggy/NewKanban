@@ -1,7 +1,7 @@
 import type { Db } from "mongodb";
 
 import { DEFAULT_AUTOMATION } from "@/components/workspace/config";
-import seed from "@/lib/seed.json";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/auth";
 import {
   ensureDefaultOwner,
   getAuthContextFromToken,
@@ -28,7 +28,7 @@ import type {
   WorkspaceSummary,
 } from "@/lib/types";
 
-const WORKSPACE_ID = process.env.WORKSPACE_ID ?? "design-studio";
+const WORKSPACE_ID = process.env.WORKSPACE_ID ?? DEFAULT_WORKSPACE_ID;
 const PRESENCE_STALE_MS = 75_000;
 const enterpriseMode = process.env.ENTERPRISE_MODE === "true";
 const mongoLicenseAcknowledged = process.env.MONGODB_LICENSE_ACKNOWLEDGED === "true";
@@ -38,6 +38,30 @@ type PresenceDocument = PresenceMember & { _id: string };
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function createEmptyWorkspaceDocument(input: { workspaceId: string; name: string; workspaceKey: string; description: string; ownerUserId?: string; createdAt: string }): WorkspaceDocument {
+  return {
+    _id: input.workspaceId,
+    id: input.workspaceId,
+    name: input.name,
+    workspaceKey: input.workspaceKey,
+    description: input.description,
+    ownerUserId: input.ownerUserId,
+    createdAt: input.createdAt,
+    sprintProgress: 0,
+    weeklyCapacity: 0,
+    tasks: [],
+    notes: [],
+    whiteboardScene: null,
+    agenda: [],
+    activity: [],
+    automation: { ...DEFAULT_AUTOMATION },
+    savedViews: [],
+    automationRules: [],
+    automationRunsCount: 0,
+    licenseAcknowledgedAt: mongoLicenseAcknowledged ? new Date().toISOString() : null,
+  };
 }
 
 function computeAnalytics(workspace: Workspace): AnalyticsSummary {
@@ -184,17 +208,14 @@ export async function ensureWorkspaceDocument(db: Db, workspaceId = WORKSPACE_ID
 
   if (!workspace) {
     const workspaceRecord = await db.collection<{ _id: string; name: string; workspaceKey: string; description: string; ownerUserId?: string; createdAt?: string }>("workspace_records").findOne({ _id: workspaceId });
-    const initialWorkspace: WorkspaceDocument = {
-      _id: workspaceId,
-      ...(deepClone(seed) as Workspace),
-      id: workspaceId,
-      name: workspaceRecord?.name ?? (seed as Workspace).name,
-      workspaceKey: workspaceRecord?.workspaceKey ?? (seed as Workspace).workspaceKey,
-      description: workspaceRecord?.description ?? (seed as Workspace).description,
+    const initialWorkspace: WorkspaceDocument = createEmptyWorkspaceDocument({
+      workspaceId,
+      name: workspaceRecord?.name ?? "VisualAI-Guest",
+      workspaceKey: workspaceRecord?.workspaceKey ?? "VISUALAI-GUEST",
+      description: workspaceRecord?.description ?? "Default guest workspace",
       ownerUserId: workspaceRecord?.ownerUserId,
       createdAt: workspaceRecord?.createdAt ?? new Date().toISOString(),
-      automation: { ...DEFAULT_AUTOMATION },
-    };
+    });
 
     await collection.insertOne(initialWorkspace);
     workspace = initialWorkspace;

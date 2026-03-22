@@ -15,6 +15,7 @@ export function useWorkspaceRealtime({
   onPresenceList,
   onMembersList,
   onAuthUser,
+  onSessionRefresh,
 }: {
   authenticated: boolean;
   view: ViewKey;
@@ -25,8 +26,10 @@ export function useWorkspaceRealtime({
   onPresenceList: (presence: PresenceMember[]) => void;
   onMembersList: (members: WorkspaceMember[]) => void;
   onAuthUser: (currentUser: AuthenticatedUser) => void;
+  onSessionRefresh?: () => Promise<void> | void;
 }) {
   const [connectionState, setConnectionState] = useState<"connecting" | "live" | "offline">("offline");
+  const [connectionNonce, setConnectionNonce] = useState(0);
   const socketRef = useRef<Socket | null>(null);
   const handlersRef = useRef({
     onWorkspaceSnapshot,
@@ -70,7 +73,10 @@ export function useWorkspaceRealtime({
 
     const handleDisconnect = () => setConnectionState("offline");
     const handleSessionRefresh = () => {
-      void loadBootstrap();
+      void (async () => {
+        await loadBootstrap();
+        await onSessionRefresh?.();
+      })();
     };
 
     socket.on("connect", handleConnect);
@@ -97,7 +103,7 @@ export function useWorkspaceRealtime({
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [authenticated, connectedAtRef, deviceIdRef, loadBootstrap]);
+  }, [authenticated, connectedAtRef, connectionNonce, deviceIdRef, loadBootstrap, onSessionRefresh]);
 
   useEffect(() => {
     if (!authenticated || !socketRef.current?.connected) return;
@@ -131,9 +137,17 @@ export function useWorkspaceRealtime({
     setConnectionState("offline");
   }, []);
 
+  const reconnect = useCallback(() => {
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+    setConnectionState("connecting");
+    setConnectionNonce((current) => current + 1);
+  }, []);
+
   return {
     connectionState,
     emitAck,
     disconnect,
+    reconnect,
   };
 }

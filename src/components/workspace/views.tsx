@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/auth";
 import {
   CALENDAR_VIEW_OPTIONS,
   EVENT_TYPE_META,
@@ -428,7 +429,7 @@ export function WorkspaceHubView({ workspaces, discoverableWorkspaces, busy, onC
                       <div className="flex justify-end gap-2">
                         <Button disabled={!workspace.joined} onClick={() => onSwitchWorkspace(workspace.id)} size="sm" variant="outline">Open</Button>
                         {workspace.role === "owner" ? <Button onClick={() => onManageWorkspace(workspace.id)} size="sm" variant="outline">Manage</Button> : null}
-                        {workspace.role === "owner" ? <Button onClick={() => onDeleteWorkspace(workspace.id)} size="sm" variant="ghost">Delete</Button> : null}
+                        {workspace.role === "owner" && workspace.id !== DEFAULT_WORKSPACE_ID ? <Button onClick={() => onDeleteWorkspace(workspace.id)} size="sm" variant="ghost">Delete</Button> : null}
                         <Button disabled={workspace.joined || workspace.joinRequested || busy} onClick={() => setJoinDialogWorkspaceId(workspace.id)} size="sm" variant="outline">
                           {workspace.joined ? "Joined" : workspace.joinRequested ? "Requested" : "Join"}
                         </Button>

@@ -8,6 +8,7 @@ import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getAuthContextFromToken } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
 import { mutateWorkspace } from "@/lib/workspace-server";
+import { emitWorkspaceRefresh } from "@/lib/realtime-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,8 @@ export async function POST(request: Request) {
     workspace.activity = workspace.activity.slice(0, 20);
   }, auth.workspaceId);
 
+  await emitWorkspaceRefresh(auth.workspaceId);
+
   return Response.json({ ok: true, attachment });
 }
 
@@ -169,6 +172,8 @@ export async function DELETE(request: Request) {
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
     await unlink(path.join(uploadsDir, removedFileName)).catch(() => undefined);
   }
+
+  await emitWorkspaceRefresh(auth.workspaceId);
 
   return Response.json({ ok: true });
 }

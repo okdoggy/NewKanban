@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ACTIVE_WORKSPACE_COOKIE_NAME, DEFAULT_WORKSPACE_ID, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { deleteWorkspaceForOwner, getAuthContextFromToken, listUserWorkspaces } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
+import { emitSessionRefresh } from "@/lib/realtime-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     const workspaces = await listUserWorkspaces(db, auth.user._id);
     const nextWorkspaceId = workspaces[0]?.id ?? DEFAULT_WORKSPACE_ID;
     cookieStore.set(ACTIVE_WORKSPACE_COOKIE_NAME, nextWorkspaceId, { httpOnly: true, sameSite: "lax", secure: false, path: "/" });
+    await emitSessionRefresh();
     return Response.json({ ok: true, nextWorkspaceId, workspaces });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "Unable to delete workspace." }, { status: 400 });

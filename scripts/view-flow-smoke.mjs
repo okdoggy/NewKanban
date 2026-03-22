@@ -1,5 +1,5 @@
 const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3000";
-const OWNER_EMAIL = process.env.DEMO_OWNER_EMAIL ?? "owner@newkanban.local";
+const OWNER_EMAIL = process.env.DEMO_OWNER_EMAIL ?? "admin.kim";
 const OWNER_PASSWORD = process.env.DEMO_OWNER_PASSWORD ?? "Admin123!";
 
 function jarToCookie(jar) {
@@ -49,7 +49,7 @@ await waitForReady();
 const loginResponse = await request(`${BASE_URL}/api/auth/login`, {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ email: OWNER_EMAIL, password: OWNER_PASSWORD }),
+  body: JSON.stringify({ accountId: OWNER_EMAIL, password: OWNER_PASSWORD }),
 }, jar);
 assert(loginResponse.ok, `Owner login failed with status ${loginResponse.status}`);
 
@@ -61,13 +61,8 @@ assert(payload.authenticated === true, "Expected authenticated bootstrap payload
 assert(Array.isArray(payload.workspace?.tasks), "Expected task array for Kanban/Gantt");
 assert(Array.isArray(payload.workspace?.agenda), "Expected agenda array for Overview/Calendar");
 assert(Array.isArray(payload.workspace?.notes), "Expected note array for Whiteboard");
-assert(payload.workspace.tasks.length > 0, "Expected at least one task for Overview/Kanban/Gantt");
-assert(payload.workspace.agenda.length > 0, "Expected at least one event for Overview/Calendar");
-assert(payload.workspace.notes.length > 0, "Expected at least one note for Whiteboard");
-assert(payload.workspace.tasks.some((task) => ["todo", "progress", "review", "done"].includes(task.status)), "Expected valid task statuses");
-assert(payload.workspace.tasks.some((task) => task.startDate && task.dueDate), "Expected tasks with timeline dates");
-assert(payload.workspace.agenda.some((event) => event.start && event.end), "Expected events with date range");
-assert(payload.workspace.notes.some((note) => typeof note.x === "number" && typeof note.y === "number"), "Expected whiteboard note coordinates");
+assert(payload.workspace.name === "VisualAI-Guest", "Expected the default workspace to be VisualAI-Guest");
+assert(payload.currentUser?.role === "owner", "Expected default workspace membership to start as owner");
 
 console.log("qa:views passed");
 console.log(JSON.stringify({

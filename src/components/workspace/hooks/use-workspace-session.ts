@@ -162,8 +162,8 @@ export function useWorkspaceSession({
       }
       setMfaChallengeToken(null);
       setMfaCode("");
-      if (payload?.verificationLink) {
-        setAuthInfo(`Account created. Verify using ${payload.verificationLink}`);
+      if (payload?.message) {
+        setAuthInfo(payload.message);
       }
       await loadBootstrap();
     } catch (error) {
@@ -192,7 +192,7 @@ export function useWorkspaceSession({
       setAuthError(payload?.message ?? "Unable to request password reset.");
       return;
     }
-    setAuthInfo(payload?.resetLink ? `Password reset link: ${payload.resetLink}` : "If that email exists, a reset link was created.");
+    setAuthInfo(payload?.message ?? "Password was reset.");
   }, [authForm.email, forgotEmail]);
 
   const confirmPasswordReset = useCallback(async () => {

@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,7 @@ import {
   isSameDay,
   parseDate,
 } from "@/lib/date-utils";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/auth";
 import type {
   AgendaEvent,
   AnalyticsSummary,
@@ -181,29 +182,20 @@ export function WorkspaceApp() {
     setSnapshot,
     loading,
     authRequired,
-    authMode,
-    setAuthMode,
     authForm,
     setAuthForm,
     authError,
     authInfo,
     authBusy,
-    inviteToken,
-    resetToken,
     mfaChallengeToken,
     mfaCode,
     setMfaCode,
-    forgotEmail,
-    setForgotEmail,
-    resetPassword,
-    setResetPassword,
     deviceIdRef,
     connectedAtRef,
     loadBootstrap,
     performAuth,
     logout: logoutSession,
     requestPasswordReset,
-    confirmPasswordReset,
   } = useWorkspaceSession({ setSelectedDay });
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
@@ -243,8 +235,9 @@ export function WorkspaceApp() {
   const [projectsTab, setProjectsTab] = useState<ProjectsTab>("board");
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>("all");
   const [surfaceNotice, setSurfaceNotice] = useState<SurfaceNotice | null>(null);
+  const shellRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
-  const { connectionState, emitAck, disconnect } = useWorkspaceRealtime({
+  const { connectionState, emitAck, disconnect, reconnect } = useWorkspaceRealtime({
     authenticated: Boolean(snapshot?.authenticated),
     view,
     deviceIdRef,
@@ -257,9 +250,14 @@ export function WorkspaceApp() {
       setSnapshot((current) => (current ? { ...current, currentUser } : current));
       setProfileDraft({ name: currentUser.name, color: currentUser.color });
     },
+    onSessionRefresh: async () => {
+      await shellRefreshRef.current?.();
+    },
   });
 
   const workspace = snapshot?.workspace ?? null;
+  const activeWorkspaceId = workspace?.id ?? "";
+  const activeWorkspaceName = workspace?.name ?? "";
   const uniquePresence = useMemo(
     () => Array.from(new Map((snapshot?.presence ?? []).map((member) => [member.userId, member])).values()),
     [snapshot?.presence],
@@ -281,13 +279,27 @@ export function WorkspaceApp() {
     setSurfaceNotice({ message: error instanceof Error ? error.message : fallback, tone: "error" });
   }, []);
 
+  const lastActiveWorkspaceIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!currentUser) return;
     setProfileDraft({ name: currentUser.name, color: currentUser.color });
   }, [currentUser]);
 
+  useEffect(() => {
+    const activeWorkspaceId = snapshot?.activeWorkspaceId ?? workspace?.id ?? null;
+    if (!activeWorkspaceId) {
+      lastActiveWorkspaceIdRef.current = null;
+      return;
+    }
+    if (lastActiveWorkspaceIdRef.current && lastActiveWorkspaceIdRef.current !== activeWorkspaceId) {
+      reconnect();
+    }
+    lastActiveWorkspaceIdRef.current = activeWorkspaceId;
+  }, [reconnect, snapshot?.activeWorkspaceId, workspace?.id]);
+
   const loadWorkspaceShellData = useCallback(async () => {
-    if (!snapshot?.authenticated || !workspace) return;
+    if (!snapshot?.authenticated || !activeWorkspaceId) return;
     try {
       const [workspacesResponse, notificationsResponse] = await Promise.all([
         fetch("/api/workspaces", { cache: "no-store" }),
@@ -299,8 +311,8 @@ export function WorkspaceApp() {
         setWorkspaceCatalog(
           (payload?.workspaces as WorkspaceCatalogItem[] | undefined) ?? [
             {
-              id: workspace.id,
-              name: workspace.name,
+              id: activeWorkspaceId,
+              name: activeWorkspaceName,
               role: currentUser?.role ?? "viewer",
               memberCount: members.length,
               isActive: true,
@@ -311,8 +323,8 @@ export function WorkspaceApp() {
       } else {
         setWorkspaceCatalog([
           {
-            id: workspace.id,
-            name: workspace.name,
+            id: activeWorkspaceId,
+            name: activeWorkspaceName,
             role: currentUser?.role ?? "viewer",
             memberCount: members.length,
             isActive: true,
@@ -330,8 +342,8 @@ export function WorkspaceApp() {
     } catch {
       setWorkspaceCatalog([
         {
-          id: workspace.id,
-          name: workspace.name,
+          id: activeWorkspaceId,
+          name: activeWorkspaceName,
           role: currentUser?.role ?? "viewer",
           memberCount: members.length,
           isActive: true,
@@ -340,7 +352,11 @@ export function WorkspaceApp() {
       setWorkspaceDirectory([]);
       setNotifications([]);
     }
-  }, [currentUser?.role, members.length, snapshot?.authenticated, workspace]);
+  }, [activeWorkspaceId, activeWorkspaceName, currentUser?.role, members.length, snapshot?.authenticated]);
+
+  useEffect(() => {
+    shellRefreshRef.current = loadWorkspaceShellData;
+  }, [loadWorkspaceShellData]);
 
   useEffect(() => {
     void loadWorkspaceShellData();
@@ -351,19 +367,8 @@ export function WorkspaceApp() {
       setWhiteboardScene(workspace.whiteboardScene);
       return;
     }
-    const stored = window.localStorage.getItem("newkanban.whiteboard-scene");
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored) as WhiteboardScene;
-      if (Array.isArray(parsed.elements)) setWhiteboardScene(parsed);
-    } catch {
-      // ignore malformed local cache
-    }
+    setWhiteboardScene({ elements: [], appState: {}, files: {}, version: 0, updatedAt: new Date().toISOString() });
   }, [workspace?.whiteboardScene]);
-
-  useEffect(() => {
-    window.localStorage.setItem("newkanban.whiteboard-scene", JSON.stringify(whiteboardScene));
-  }, [whiteboardScene]);
 
   useEffect(() => {
     if (!selectedTask) return;
@@ -1112,7 +1117,7 @@ export function WorkspaceApp() {
 
   if (loading) return <LoadingScreen />;
   if (authRequired || !snapshot?.authenticated || !workspace || !currentUser || !permissions) {
-    return <AuthScreen authBusy={authBusy} authError={authError} authForm={authForm} authInfo={authInfo} authMode={authMode} forgotEmail={forgotEmail} inviteToken={inviteToken} mfaChallengeToken={mfaChallengeToken} mfaCode={mfaCode} onChange={setAuthForm} onConfirmReset={confirmPasswordReset} onForgotEmailChange={setForgotEmail} onMfaCodeChange={setMfaCode} onModeChange={setAuthMode} onRequestPasswordReset={requestPasswordReset} onResetPasswordChange={setResetPassword} onSubmit={performAuth} resetPassword={resetPassword} resetToken={resetToken} />;
+    return <AuthScreen authBusy={authBusy} authError={authError} authForm={authForm} authInfo={authInfo} mfaChallengeToken={mfaChallengeToken} mfaCode={mfaCode} onChange={setAuthForm} onMfaCodeChange={setMfaCode} onRequestPasswordReset={requestPasswordReset} onSubmit={performAuth} />;
   }
 
   const activeWorkspace = workspaceCatalog.find((item) => item.isActive) ?? workspaceCatalog[0] ?? null;
@@ -1283,7 +1288,7 @@ export function WorkspaceApp() {
       {currentUser ? <TaskDetailDialog currentUser={currentUser} deletingAttachmentId={deletingAttachmentId} deletingCommentId={deletingCommentId} deletingTask={deletingTaskId === selectedTaskId} members={members} onCommentChange={setTaskCommentDraft} onCommentDelete={deleteTaskComment} onCommentSubmit={submitTaskComment} onDeleteTask={deleteTask} onFileDelete={deleteAttachment} onFileUpload={uploadAttachment} onOpenChange={setTaskDetailOpen} onReplyTargetChange={setReplyTargetId} onSave={saveTaskDetail} open={taskDetailOpen} permissions={permissions} replyTargetId={replyTargetId} selectedTask={selectedTask} setTaskDetailDraft={setTaskDetailDraft} taskCommentDraft={taskCommentDraft} taskDetailDraft={taskDetailDraft} uploadBusy={uploadBusy} userDirectory={userDirectory} /> : null}
       <EventDialog deleting={deletingEventId === editingEventId} editing={Boolean(editingEventId)} eventDraft={eventDraft} onChange={setEventDraft} onDelete={editingEventId ? deleteEvent : undefined} onOpenChange={setEventDialogOpen} onSubmit={submitEvent} open={eventDialogOpen} />
       <ProfileDialog currentUser={currentUser} onChange={setProfileDraft} onLogout={logout} onOpenChange={setProfileDialogOpen} onSubmit={saveProfile} open={profileDialogOpen} profileDraft={profileDraft} />
-      <MembersDialog currentUser={currentUser} members={managedWorkspaceMembers} onOpenChange={(value) => { setMembersDialogOpen(value); if (!value) { setManagedWorkspace(null); setManagedWorkspaceMembers([]); } }} onRoleChange={updateWorkspaceMemberRole} open={membersDialogOpen} updatingUserId={updatingWorkspaceMemberId} workspaceName={formatWorkspaceName(managedWorkspace?.name ?? "Workspace")} />
+      <MembersDialog currentUser={currentUser} members={managedWorkspaceMembers} onOpenChange={(value) => { setMembersDialogOpen(value); if (!value) { setManagedWorkspace(null); setManagedWorkspaceMembers([]); } }} onRoleChange={updateWorkspaceMemberRole} open={membersDialogOpen} readOnly={managedWorkspace?.id === DEFAULT_WORKSPACE_ID} updatingUserId={updatingWorkspaceMemberId} workspaceName={formatWorkspaceName(managedWorkspace?.name ?? "Workspace")} />
       <SavedViewsDialog onApply={applySavedView} onCreate={createSavedView} onDelete={deleteSavedView} onOpenChange={setSavedViewsOpen} open={savedViewsOpen} savedViews={savedViews} />
       <AutomationDialog onOpenChange={setAutomationOpen} onToggle={toggleAutomationRule} open={automationOpen} rules={automationRules} />
       <InsightsDialog analytics={analytics} onOpenChange={setInsightsOpen} open={insightsOpen} />

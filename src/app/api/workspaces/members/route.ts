@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getAuthContextFromToken, listWorkspaceMembers, updateMemberRole } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
+import { emitSessionRefresh, emitWorkspaceRefresh } from "@/lib/realtime-bridge";
 import type { MemberRole } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,8 @@ export async function POST(request: Request) {
   }
 
   await updateMemberRole(db, auth.workspaceId, userId, role);
+  await emitWorkspaceRefresh(auth.workspaceId);
+  await emitSessionRefresh();
   const members = await listWorkspaceMembers(db, auth.workspaceId);
   return Response.json({ ok: true, members }, { headers: { "Cache-Control": "no-store" } });
 }

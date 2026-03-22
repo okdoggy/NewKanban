@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getAuthContextFromToken, markNotificationRead } from "@/lib/auth-server";
+import { emitSessionRefresh } from "@/lib/realtime-bridge";
 import { getMongoDb } from "@/lib/mongo";
 
 export const dynamic = "force-dynamic";
@@ -16,5 +17,6 @@ export async function POST(request: Request) {
     return Response.json({ message: "Authentication required." }, { status: 401 });
   }
   await markNotificationRead(db, auth, payload.notificationId ?? "");
+  await emitSessionRefresh();
   return Response.json({ ok: true });
 }

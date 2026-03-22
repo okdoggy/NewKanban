@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { createWorkspaceForUser, getAuthContextFromToken, listPendingJoinRequests, listUserWorkspaces } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
+import { emitSessionRefresh } from "@/lib/realtime-bridge";
 import { ensureWorkspaceDocument } from "@/lib/workspace-server";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
     const workspace = await createWorkspaceForUser(db, auth, payload);
     await ensureWorkspaceDocument(db, workspace.id);
     cookieStore.set(ACTIVE_WORKSPACE_COOKIE_NAME, workspace.id, { httpOnly: true, sameSite: "lax", secure: false, path: "/" });
+    await emitSessionRefresh();
     return Response.json({ ok: true, workspace, workspaces: await listUserWorkspaces(db, auth.user._id) });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "Unable to create workspace." }, { status: 400 });

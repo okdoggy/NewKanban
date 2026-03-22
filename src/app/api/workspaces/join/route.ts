@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { createWorkspaceJoinRequest, getAuthContextFromToken } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
+import { emitSessionRefresh } from "@/lib/realtime-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
 
   try {
     await createWorkspaceJoinRequest(db, auth, { workspaceId: workspace._id, message: payload.message });
+    await emitSessionRefresh();
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "Unable to request access." }, { status: 400 });

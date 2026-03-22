@@ -1,14 +1,7 @@
-const LEGACY_GUEST_PREFIX = /^VisualAI-Guest-?/i;
-
 export function formatWorkspaceName(name: string) {
   const trimmed = name.trim();
   if (!trimmed) return "Workspace";
-
-  if (/^VisualAI-Guest$/i.test(trimmed)) {
-    return "VisualAI";
-  }
-
-  return trimmed.replace(LEGACY_GUEST_PREFIX, "").trim() || trimmed;
+  return trimmed;
 }
 
 export function normalizeWorkspaceNameInput(name: string, fallback = "Workspace") {

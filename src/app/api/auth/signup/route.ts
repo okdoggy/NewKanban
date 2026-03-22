@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   if (name.length < 2) {
     return Response.json({ message: "Name must be at least 2 characters." }, { status: 400 });
   }
-  if (!email.includes("@")) {
-    return Response.json({ message: "Please provide a valid email." }, { status: 400 });
+  if (!email) {
+    return Response.json({ message: "Please provide a valid Knox ID." }, { status: 400 });
   }
   if (password.length < 8) {
     return Response.json({ message: "Password must be at least 8 characters." }, { status: 400 });
@@ -35,6 +35,8 @@ export async function POST(request: Request) {
       email,
       password,
       handle: normalizeHandle(handle),
+      role: "owner",
+      emailVerified: true,
     });
     const verificationToken = await createVerificationToken(db, user);
     const workspaceId = await getPreferredWorkspaceIdForUser(db, user._id);

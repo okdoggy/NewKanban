@@ -2,9 +2,6 @@ import type { Db } from "mongodb";
 
 import {
   DEFAULT_WORKSPACE_ID,
-  DEFAULT_OWNER_EMAIL,
-  DEFAULT_OWNER_NAME,
-  DEFAULT_OWNER_PASSWORD,
   DEFAULT_WORKSPACE_NAME,
   SESSION_MAX_AGE_SECONDS,
   buildOtpAuthUrl,
@@ -63,7 +60,7 @@ export interface WorkspaceRecordDocument {
   name: string;
   workspaceKey: string;
   description: string;
-  ownerUserId: string;
+  ownerUserId?: string;
   createdAt: string;
 }
 
@@ -194,6 +191,17 @@ async function ensureWorkspaceRecord(db: Db, workspace: WorkspaceRecordDocument)
   }
 }
 
+function buildDefaultWorkspaceRecord(): WorkspaceRecordDocument {
+  return {
+    _id: WORKSPACE_ID,
+    id: WORKSPACE_ID,
+    name: DEFAULT_WORKSPACE_NAME,
+    workspaceKey: buildWorkspaceKey(DEFAULT_WORKSPACE_NAME),
+    description: "Default guest workspace",
+    createdAt: new Date().toISOString(),
+  };
+}
+
 async function resolveWorkspaceMembership(
   db: Db,
   userId: string,
@@ -255,56 +263,7 @@ export async function listAuditLogs(db: Db, auth: AuthContext) {
 }
 
 export async function ensureDefaultOwner(db: Db) {
-  const users = db.collection<UserDocument>("users");
-  const memberships = db.collection<MembershipDocument>("memberships");
-  const email = normalizeEmail(DEFAULT_OWNER_EMAIL);
-  let owner = await users.findOne({ email });
-
-  if (!owner) {
-    owner = {
-      _id: crypto.randomUUID(),
-      email,
-      handle: normalizeHandle(DEFAULT_OWNER_NAME),
-      name: DEFAULT_OWNER_NAME,
-      color: colorForSeed(email),
-      passwordHash: makePasswordHash(DEFAULT_OWNER_PASSWORD),
-      emailVerified: true,
-      mfaEnabled: false,
-      createdAt: new Date().toISOString(),
-    };
-    await users.insertOne(owner);
-    await appendAuditLog(db, {
-      actorName: DEFAULT_OWNER_NAME,
-      actorEmail: email,
-      actorUserId: owner._id,
-      userId: owner._id,
-      scope: "auth",
-      action: "seed-owner",
-      detail: "Seeded default workspace owner account.",
-    });
-  }
-
-  const membershipId = `${WORKSPACE_ID}:${owner._id}`;
-  const membership = await memberships.findOne({ _id: membershipId });
-  if (!membership) {
-    await memberships.insertOne({
-      _id: membershipId,
-      workspaceId: WORKSPACE_ID,
-      userId: owner._id,
-      role: "owner",
-      joinedAt: new Date().toISOString(),
-    });
-  }
-
-  await ensureWorkspaceRecord(db, {
-    _id: WORKSPACE_ID,
-    id: WORKSPACE_ID,
-    name: DEFAULT_WORKSPACE_NAME,
-    workspaceKey: buildWorkspaceKey(DEFAULT_WORKSPACE_NAME),
-    description: "Default guest workspace",
-    ownerUserId: owner._id,
-    createdAt: new Date().toISOString(),
-  });
+  await ensureWorkspaceRecord(db, buildDefaultWorkspaceRecord());
 }
 
 export async function registerUser(
@@ -340,7 +299,7 @@ export async function registerUser(
     _id: `${WORKSPACE_ID}:${user._id}`,
     workspaceId: WORKSPACE_ID,
     userId: user._id,
-    role: input.role ?? "editor",
+    role: input.role ?? "owner",
     joinedAt: new Date().toISOString(),
   });
 
@@ -351,19 +310,37 @@ export async function registerUser(
     userId: user._id,
     scope: "auth",
     action: "signup",
-    detail: `User ${user.email} created an account with role ${input.role ?? "editor"}.`,
+    detail: `User ${user.email} created an account with role ${input.role ?? "owner"}.`,
   });
 
   return user;
 }
 
-export async function authenticateUser(db: Db, emailInput: string, password: string) {
+export function buildDisplayNameFromIdentifier(identifier: string) {
+  const cleaned = identifier.trim().replace(/[^a-zA-Z0-9.]+/g, ".");
+  const segments = cleaned.split(".").filter(Boolean);
+  if (segments.length === 0) return "Workspace User";
+  return segments
+    .slice(0, 2)
+    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+export async function findUserByIdentifier(db: Db, identifierInput: string) {
   const users = db.collection<UserDocument>("users");
-  const email = normalizeEmail(emailInput);
-  const user = await users.findOne({ email });
+  const identifier = normalizeEmail(identifierInput);
+  const handle = normalizeHandle(identifierInput);
+  return users.findOne({ $or: [{ email: identifier }, { handle }] });
+}
+
+export async function authenticateUser(db: Db, identifierInput: string, password: string) {
+  const users = db.collection<UserDocument>("users");
+  const identifier = normalizeEmail(identifierInput);
+  const handle = normalizeHandle(identifierInput);
+  const user = await users.findOne({ $or: [{ email: identifier }, { handle }] });
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
-    throw new Error("Invalid email or password.");
+    throw new Error("Invalid Knox ID or password.");
   }
 
   return user;
@@ -453,6 +430,9 @@ export async function listWorkspaceMembers(db: Db, workspaceId = WORKSPACE_ID): 
 }
 
 export async function updateMemberRole(db: Db, workspaceId: string, userId: string, role: MemberRole) {
+  if (workspaceId === WORKSPACE_ID) {
+    throw new Error("VisualAI-Guest keeps every member as owner.");
+  }
   await db.collection<MembershipDocument>("memberships").updateOne(
     { _id: `${workspaceId}:${userId}` },
     { $set: { role } },
@@ -556,6 +536,7 @@ export async function createWorkspaceForUser(db: Db, auth: AuthContext, input: {
 export async function createWorkspaceJoinRequest(db: Db, auth: AuthContext, input: { workspaceId: string; message?: string }) {
   const workspace = await db.collection<WorkspaceRecordDocument>("workspace_records").findOne({ _id: input.workspaceId });
   if (!workspace) throw new Error("Workspace not found.");
+  if (!workspace.ownerUserId) throw new Error("Workspace owner is unavailable.");
   const membership = await db.collection<MembershipDocument>("memberships").findOne({ _id: `${input.workspaceId}:${auth.user._id}` });
   if (membership) throw new Error("Already a member of this workspace.");
   const existing = await db.collection<WorkspaceJoinRequestDocument>("workspace_join_requests").findOne({
@@ -652,6 +633,7 @@ export async function approveJoinRequest(db: Db, auth: AuthContext, input: { req
 }
 
 export async function deleteWorkspaceForOwner(db: Db, auth: AuthContext, workspaceId: string) {
+  if (workspaceId === WORKSPACE_ID) throw new Error("VisualAI-Guest cannot be deleted.");
   const workspace = await db.collection<WorkspaceRecordDocument>("workspace_records").findOne({ _id: workspaceId });
   if (!workspace || workspace.ownerUserId !== auth.user._id) throw new Error("Only the owner can delete this workspace.");
   await Promise.all([
@@ -833,6 +815,26 @@ export async function resetPasswordByToken(db: Db, rawToken: string, password: s
       detail: `${user.email} reset their password.`,
     });
   }
+}
+
+export async function resetPasswordByIdentifier(db: Db, identifierInput: string, password = "0000") {
+  const user = await findUserByIdentifier(db, identifierInput);
+  if (!user) throw new Error("Knox ID not found.");
+
+  await db.collection<UserDocument>("users").updateOne(
+    { _id: user._id },
+    { $set: { passwordHash: makePasswordHash(password) } },
+  );
+
+  await appendAuditLog(db, {
+    actorName: user.name,
+    actorEmail: user.email,
+    actorUserId: user._id,
+    userId: user._id,
+    scope: "security",
+    action: "reset-password",
+    detail: `${user.email} password was reset to the default value.`,
+  });
 }
 
 export async function createMfaSetup(db: Db, auth: AuthContext) {

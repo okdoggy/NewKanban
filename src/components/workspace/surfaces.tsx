@@ -1,12 +1,8 @@
 "use client";
 
 import {
-  CalendarDays,
   MessageSquare,
-  ShieldCheck,
   Upload,
-  Users,
-  Waypoints,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -17,7 +13,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DECISION_SECTIONS,
@@ -33,7 +28,6 @@ import {
   AttachmentRow,
   buildCommentTree,
   CommentBubble,
-  FeatureCard,
   Field,
   getInitials,
   SelectField,
@@ -109,64 +103,36 @@ export function LoadingScreen() {
   );
 }
 
-export function AuthScreen({ authMode, authForm, authError, authInfo, authBusy, inviteToken, resetToken, mfaChallengeToken, mfaCode, forgotEmail, resetPassword, onModeChange, onChange, onForgotEmailChange, onMfaCodeChange, onResetPasswordChange, onSubmit, onRequestPasswordReset, onConfirmReset }: { authMode: "login" | "signup"; authForm: AuthFormState; authError: string | null; authInfo: string | null; authBusy: boolean; inviteToken: string | null; resetToken: string | null; mfaChallengeToken: string | null; mfaCode: string; forgotEmail: string; resetPassword: string; onModeChange: (value: "login" | "signup") => void; onChange: (value: AuthFormState) => void; onForgotEmailChange: (value: string) => void; onMfaCodeChange: (value: string) => void; onResetPasswordChange: (value: string) => void; onSubmit: () => void; onRequestPasswordReset: () => void; onConfirmReset: () => void; }) {
-  const title = resetToken ? "Reset password" : inviteToken ? "Accept invite" : authMode === "login" ? "Sign in" : "Create account";
+export function AuthScreen({ authForm, authError, authInfo, authBusy, mfaChallengeToken, mfaCode, onChange, onMfaCodeChange, onSubmit, onRequestPasswordReset }: { authForm: AuthFormState; authError: string | null; authInfo: string | null; authBusy: boolean; mfaChallengeToken: string | null; mfaCode: string; onChange: (value: AuthFormState) => void; onMfaCodeChange: (value: string) => void; onSubmit: () => void; onRequestPasswordReset: () => void; }) {
   return (
-    <div className="min-h-screen bg-app-gradient px-4 py-10 text-foreground">
-      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.15fr_420px]">
-        <Card className="glass-surface border-0 overflow-hidden">
-          <CardHeader className="pb-4">
-            <p className="text-sm font-medium text-primary">VisualAI Group</p>
-            <CardTitle className="font-heading text-5xl leading-tight">Secure collaborative workspace for your team.</CardTitle>
-            <CardDescription className="max-w-2xl text-base">Sign in to access authenticated realtime sync, role-based permissions, file uploads, and shared planning surfaces built from your concept direction.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <FeatureCard icon={ShieldCheck} title="Authentication" description="Session-backed identity with secure cookies and role-aware access." />
-            <FeatureCard icon={Users} title="Formal roles" description="Owner, editor, and viewer permissions guard every mutation path." />
-            <FeatureCard icon={Upload} title="Attachments" description="Upload files into task detail with persistent storage in Docker volume." />
-            <FeatureCard icon={MessageSquare} title="Threaded comments" description="Reply inside task discussions to preserve context." />
-            <FeatureCard icon={CalendarDays} title="Fast scheduler" description="Quick-create, compact forms, and shared planning views." />
-            <FeatureCard icon={Waypoints} title="Decision Canvas" description="Shared decision notes stay live across connected authenticated devices." />
-          </CardContent>
-        </Card>
-
-        <Card className="glass-surface border-0 shadow-[0_20px_60px_rgba(43,75,185,0.08)]">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="font-heading text-3xl">{title}</CardTitle>
-                <CardDescription>{resetToken ? "Choose a new password for your account." : inviteToken ? "Create your account from an owner-issued invite link." : authMode === "login" ? "Use your workspace credentials." : "New accounts join as editors by default."}</CardDescription>
-              </div>
-              {!inviteToken && !resetToken ? (
-                <Tabs onValueChange={(value) => onModeChange(value as "login" | "signup")} value={authMode}>
-                  <TabsList>
-                    <TabsTrigger value="login">Login</TabsTrigger>
-                    <TabsTrigger value="signup">Signup</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              ) : null}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {resetToken ? (
-              <Field label="New password"><Input onChange={(event) => onResetPasswordChange(event.target.value)} type="password" value={resetPassword} /></Field>
-            ) : authMode === "signup" ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Name"><Input onChange={(event) => onChange({ ...authForm, name: event.target.value })} value={authForm.name} /></Field>
-                <Field label="Handle"><Input onChange={(event) => onChange({ ...authForm, handle: event.target.value })} placeholder="jane-doe" value={authForm.handle} /></Field>
-              </div>
-            ) : null}
-            {!resetToken ? <Field label="Email"><Input onChange={(event) => onChange({ ...authForm, email: event.target.value })} type="email" value={authForm.email} /></Field> : null}
-            {!resetToken && !mfaChallengeToken ? <Field label="Password"><Input onChange={(event) => onChange({ ...authForm, password: event.target.value })} type="password" value={authForm.password} /></Field> : null}
-            {mfaChallengeToken ? <Field label="MFA code"><Input onChange={(event) => onMfaCodeChange(event.target.value)} value={mfaCode} /></Field> : null}
-            {authInfo ? <div className="rounded-[18px] bg-blue-50 px-4 py-3 text-sm text-blue-700">{authInfo}</div> : null}
-            {authError ? <div className="rounded-[18px] bg-rose-50 px-4 py-3 text-sm text-rose-700">{authError}</div> : null}
-            {resetToken ? <Button className="w-full" disabled={authBusy} onClick={onConfirmReset}>{authBusy ? "Working…" : "Reset password"}</Button> : <Button className="w-full" disabled={authBusy} onClick={onSubmit}>{authBusy ? "Working…" : mfaChallengeToken ? "Verify MFA" : authMode === "login" ? "Sign in" : inviteToken ? "Accept invite" : "Create account"}</Button>}
-            {!resetToken ? <div className="rounded-[18px] bg-slate-50 px-4 py-3 text-sm text-muted-foreground"><div className="mb-2 font-medium">Need a password reset?</div><div className="flex gap-2"><Input onChange={(event) => onForgotEmailChange(event.target.value)} placeholder="your-email@example.com" value={forgotEmail} /><Button onClick={onRequestPasswordReset} size="sm" variant="outline">Send reset</Button></div></div> : null}
-            <div className="rounded-[18px] bg-slate-50 px-4 py-3 text-sm text-muted-foreground">Demo owner credentials are seeded from the server environment for local setup. Team members can create their own accounts here.</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-app-gradient px-4 py-10 text-foreground">
+      <Card className="w-full max-w-md border-0 bg-white/92 shadow-[0_24px_60px_rgba(43,75,185,0.08)]">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-heading text-3xl tracking-tight">Login</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Field label="Knox ID">
+            <Input autoFocus onChange={(event) => onChange({ ...authForm, email: event.target.value })} placeholder="admin.kim" value={authForm.email} />
+          </Field>
+          {!mfaChallengeToken ? (
+            <Field label="Password">
+              <Input onChange={(event) => onChange({ ...authForm, password: event.target.value })} type="password" value={authForm.password} />
+            </Field>
+          ) : (
+            <Field label="MFA code">
+              <Input onChange={(event) => onMfaCodeChange(event.target.value)} value={mfaCode} />
+            </Field>
+          )}
+          {authInfo ? <div className="rounded-[16px] bg-blue-50 px-4 py-3 text-sm text-blue-700">{authInfo}</div> : null}
+          {authError ? <div className="rounded-[16px] bg-rose-50 px-4 py-3 text-sm text-rose-700">{authError}</div> : null}
+          <Button className="w-full" disabled={authBusy} onClick={onSubmit}>
+            {authBusy ? "Working…" : mfaChallengeToken ? "Verify" : "Login"}
+          </Button>
+          <Button className="w-full" disabled={authBusy || !authForm.email.trim()} onClick={onRequestPasswordReset} variant="outline">
+            Reset password to 0000
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -619,7 +585,7 @@ export function ProfileDialog({ open, onOpenChange, profileDraft, onChange, onSu
   );
 }
 
-export function MembersDialog({ open, onOpenChange, workspaceName, members, onRoleChange, currentUser, updatingUserId }: { open: boolean; onOpenChange: (value: boolean) => void; workspaceName: string; members: WorkspaceMember[]; onRoleChange: (userId: string, role: MemberRole) => void; currentUser: AuthenticatedUser; updatingUserId?: string | null; }) {
+export function MembersDialog({ open, onOpenChange, workspaceName, members, onRoleChange, currentUser, updatingUserId, readOnly = false }: { open: boolean; onOpenChange: (value: boolean) => void; workspaceName: string; members: WorkspaceMember[]; onRoleChange: (userId: string, role: MemberRole) => void; currentUser: AuthenticatedUser; updatingUserId?: string | null; readOnly?: boolean; }) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="w-[1080px] max-h-[84vh] max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0 sm:max-w-[1080px]">
@@ -647,8 +613,8 @@ export function MembersDialog({ open, onOpenChange, workspaceName, members, onRo
                   </TableCell>
                   <TableCell className="truncate py-2 text-[12px] text-muted-foreground">@{member.handle}</TableCell>
                   <TableCell className="truncate py-2 text-[12px] text-muted-foreground">{member.email}</TableCell>
-                  <TableCell className="py-2">
-                    {member.userId === currentUser.userId ? (
+                    <TableCell className="py-2">
+                    {member.userId === currentUser.userId || readOnly ? (
                       <Badge className={cn("rounded-full border-0 px-2 py-0.5 text-[10px]", roleMeta[member.role])}>{member.role}</Badge>
                     ) : (
                       <select className="input-shell h-7 w-[88px] min-w-[88px] rounded-full px-2 text-[11px]" disabled={updatingUserId === member.userId} onChange={(event) => onRoleChange(member.userId, event.target.value as MemberRole)} value={member.role}>

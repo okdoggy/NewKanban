@@ -34,10 +34,10 @@ jobs:
           HOSTNAME: 127.0.0.1
           MONGODB_URI: mongodb://127.0.0.1:27017/newkanban
           MONGODB_DB: newkanban
-          WORKSPACE_ID: design-studio
-          DEMO_OWNER_EMAIL: owner@newkanban.local
+          WORKSPACE_ID: visualai-guest
+          DEMO_OWNER_EMAIL: admin.kim
           DEMO_OWNER_PASSWORD: Admin123!
-          DEMO_OWNER_NAME: Workspace Owner
+          DEMO_OWNER_NAME: Admin Kim
         run: |
           npm run start > app.log 2>&1 &
           for i in $(seq 1 30); do
@@ -50,7 +50,7 @@ jobs:
       - name: Run view smoke QA
         env:
           QA_BASE_URL: http://127.0.0.1:3000
-          DEMO_OWNER_EMAIL: owner@newkanban.local
+          DEMO_OWNER_EMAIL: admin.kim
           DEMO_OWNER_PASSWORD: Admin123!
         run: npm run qa:views
 

@@ -8,7 +8,9 @@
     "start": "NODE_ENV=production node server.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "qa:views": "node scripts/view-flow-smoke.mjs"
+    "qa:views": "node scripts/view-flow-smoke.mjs",
+    "db:reset": "node scripts/reset-demo-data.mjs",
+    "qa:lan": "node scripts/lan-realtime-smoke.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",

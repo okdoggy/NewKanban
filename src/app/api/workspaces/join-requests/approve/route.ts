@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { approveJoinRequest, getAuthContextFromToken } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
+import { emitSessionRefresh, emitWorkspaceRefresh } from "@/lib/realtime-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export async function POST(request: Request) {
 
   try {
     await approveJoinRequest(db, auth, { requestId: payload.requestId ?? "", approved: payload.approved !== false });
+    await emitWorkspaceRefresh(auth.workspaceId);
+    await emitSessionRefresh();
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "Unable to review join request." }, { status: 400 });

@@ -1,10 +1,9 @@
-import { createHash, randomBytes, randomUUID, scryptSync } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import { MongoClient } from "mongodb";
 import nextEnv from "@next/env";
-import seed from "./src/lib/seed.json" with { type: "json" };
 
 const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
@@ -18,13 +17,9 @@ const defaultWorkspaceId = process.env.WORKSPACE_ID ?? "visualai-guest";
 const presenceStaleMs = 75_000;
 const sessionCookieName = "nk_session";
 const activeWorkspaceCookieName = "nk_workspace";
-const defaultOwnerEmail = process.env.DEMO_OWNER_EMAIL ?? "owner@newkanban.local";
-const defaultOwnerPassword = process.env.DEMO_OWNER_PASSWORD ?? "Admin123!";
-const defaultOwnerName = process.env.DEMO_OWNER_NAME ?? "Workspace Owner";
+const defaultWorkspaceName = "VisualAI-Guest";
 const enterpriseMode = process.env.ENTERPRISE_MODE === "true";
 const mongoLicenseAcknowledged = process.env.MONGODB_LICENSE_ACKNOWLEDGED === "true";
-const colorPalette = ["#2b4bb9", "#4865d3", "#0ea5e9", "#14b8a6", "#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#d946ef", "#8b5cf6", "#6366f1", "#64748b", "#111827"];
-
 let requestHandler = (_req, res) => {
   res.statusCode = 503;
   res.end("Server is starting…");
@@ -35,8 +30,32 @@ function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function normalizeEmail(value = "") {
-  return value.trim().toLowerCase();
+function createEmptyWorkspace(workspaceId, workspaceRecord = {}) {
+  return {
+    _id: workspaceId,
+    id: workspaceId,
+    name: workspaceRecord.name ?? defaultWorkspaceName,
+    workspaceKey: workspaceRecord.workspaceKey ?? "VISUALAI-GUEST",
+    description: workspaceRecord.description ?? "Default guest workspace",
+    ownerUserId: workspaceRecord.ownerUserId,
+    createdAt: workspaceRecord.createdAt ?? new Date().toISOString(),
+    sprintProgress: 0,
+    weeklyCapacity: 0,
+    tasks: [],
+    notes: [],
+    whiteboardScene: null,
+    agenda: [],
+    activity: [],
+    automation: {
+      progressCompletesTask: true,
+      statusSetsProgress: true,
+      dueDateCreatesAgendaHold: false,
+    },
+    savedViews: [],
+    automationRules: [],
+    automationRunsCount: 0,
+    licenseAcknowledgedAt: mongoLicenseAcknowledged ? new Date().toISOString() : null,
+  };
 }
 
 function normalizeHandle(value = "") {
@@ -48,17 +67,6 @@ function normalizeHandle(value = "") {
     .slice(0, 24);
 
   return normalized || `user-${randomUUID().slice(0, 8)}`;
-}
-
-function colorForSeed(seed = "") {
-  const total = Array.from(seed).reduce((count, char) => count + char.charCodeAt(0), 0);
-  return colorPalette[total % colorPalette.length];
-}
-
-function makePasswordHash(password) {
-  const salt = randomBytes(16).toString("hex");
-  const digest = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${digest}`;
 }
 
 function hashSessionToken(token) {
@@ -171,6 +179,12 @@ function normalizeWorkspaceDocument(workspace) {
       readonly: event.readonly ?? false,
       source: event.source ?? "workspace",
     })),
+    automation: {
+      progressCompletesTask: true,
+      statusSetsProgress: true,
+      dueDateCreatesAgendaHold: false,
+      ...(workspace.automation ?? {}),
+    },
     savedViews: workspace.savedViews ?? [],
     automationRules:
       workspace.automationRules ?? [
@@ -204,32 +218,15 @@ async function getDb() {
 }
 
 async function ensureDefaultOwner(db) {
-  const users = db.collection("users");
-  const memberships = db.collection("memberships");
-  const email = normalizeEmail(defaultOwnerEmail);
-  let owner = await users.findOne({ email });
-
-  if (!owner) {
-    owner = {
-      _id: randomUUID(),
-      email,
-      handle: normalizeHandle(defaultOwnerName),
-      name: defaultOwnerName,
-      color: colorForSeed(email),
-      passwordHash: makePasswordHash(defaultOwnerPassword),
+  const records = db.collection("workspace_records");
+  if (!(await records.findOne({ _id: defaultWorkspaceId }))) {
+    await records.insertOne({
+      _id: defaultWorkspaceId,
+      id: defaultWorkspaceId,
+      name: defaultWorkspaceName,
+      workspaceKey: "VISUALAI-GUEST",
+      description: "Default guest workspace",
       createdAt: new Date().toISOString(),
-    };
-    await users.insertOne(owner);
-  }
-
-  const membershipId = `${defaultWorkspaceId}:${owner._id}`;
-  if (!(await memberships.findOne({ _id: membershipId }))) {
-    await memberships.insertOne({
-      _id: membershipId,
-      workspaceId: defaultWorkspaceId,
-      userId: owner._id,
-      role: "owner",
-      joinedAt: new Date().toISOString(),
     });
   }
 }
@@ -246,16 +243,7 @@ async function ensureWorkspaceDocument(db, workspaceId = defaultWorkspaceId) {
 
   if (!workspace) {
     const workspaceRecord = await db.collection("workspace_records").findOne({ _id: workspaceId });
-    workspace = {
-      _id: workspaceId,
-      ...deepClone(seed),
-      id: workspaceId,
-      name: workspaceRecord?.name ?? seed.name,
-      workspaceKey: workspaceRecord?.workspaceKey ?? seed.workspaceKey,
-      description: workspaceRecord?.description ?? seed.description,
-      ownerUserId: workspaceRecord?.ownerUserId,
-      createdAt: workspaceRecord?.createdAt ?? new Date().toISOString(),
-    };
+    workspace = createEmptyWorkspace(workspaceId, workspaceRecord ?? {});
     await collection.insertOne(workspace);
   }
 
@@ -365,6 +353,22 @@ async function broadcastState(io, db, workspaceId) {
 
 async function emitAuthRefresh(io) {
   io.emit("session:refresh");
+}
+
+function registerRealtimeBridge(io, db) {
+  process.__newkanbanRealtimeBridge = {
+    emitSessionRefresh: () => {
+      io.emit("session:refresh");
+    },
+    emitWorkspaceRefresh: async (workspaceId) => {
+      if (!workspaceId) return;
+      await broadcastState(io, db, workspaceId);
+    },
+  };
+}
+
+function unregisterRealtimeBridge() {
+  delete process.__newkanbanRealtimeBridge;
 }
 
 async function updateWorkspace(db, workspaceId, mutator) {
@@ -707,6 +711,7 @@ async function main() {
       credentials: true,
     },
   });
+  registerRealtimeBridge(io, db);
 
   io.on("connection", (socket) => {
     const withAuth = (permissionKey, handler) => async (payload = {}, ack) => {
@@ -738,6 +743,7 @@ async function main() {
       withAuth(null, async (payload, actor) => {
         await upsertPresence(db, socket, actor, payload);
         socket.join(`workspace:${actor.workspaceId}`);
+        socket.join(`user:${actor.currentUser.userId}`);
         const state = await readBootstrapState(db, actor.workspaceId);
         socket.emit("auth:user", actor.currentUser);
         socket.emit("workspace:snapshot", state.workspace);
@@ -1022,7 +1028,7 @@ async function main() {
 
     socket.on(
       "note:move",
-      withAuth("editNotes", async (payload) => {
+      withAuth("editNotes", async (payload, actor) => {
         await updateWorkspace(db, actor.workspaceId, async (workspace) => {
           const note = findNote(workspace, payload.noteId);
           if (!note) return;
@@ -1218,7 +1224,7 @@ async function main() {
 
     socket.on(
       "saved-view:delete",
-      withAuth("comment", async (payload) => {
+      withAuth("comment", async (payload, actor) => {
         await updateWorkspace(db, actor.workspaceId, async (workspace) => {
           workspace.savedViews = (workspace.savedViews ?? []).filter((view) => view.id !== payload.savedViewId);
         });
@@ -1272,6 +1278,7 @@ async function main() {
         console.error("Graceful shutdown warning", error);
       }
     } finally {
+      unregisterRealtimeBridge();
       await mongoClient.close();
       process.exit(0);
     }
