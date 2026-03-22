@@ -514,7 +514,7 @@ function normalizeTemplateRegistry(scene?: WhiteboardScene | null) {
   };
 }
 
-export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: WhiteboardScene | null; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; canEdit: boolean; }) {
+export function WhiteboardCanvas({ scene, onSceneChange, canEdit, scopeKey }: { scene?: WhiteboardScene | null; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; canEdit: boolean; scopeKey: string; }) {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAppliedSceneRef = useRef("");
@@ -523,6 +523,7 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
   const [activeTemplateId, setActiveTemplateId] = useState<string>(() => normalizeTemplateRegistry(scene).activeTemplateId);
   const templateRegistryRef = useRef(templateRegistry);
   const activeTemplateIdRef = useRef(activeTemplateId);
+  const scopeKeyRef = useRef(scopeKey);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -531,6 +532,12 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
   }, []);
 
   useEffect(() => {
+    scopeKeyRef.current = scopeKey;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setApplyingTemplateId(null);
     const nextState = normalizeTemplateRegistry(scene);
     setTemplateRegistry(nextState.templates);
     setActiveTemplateId(nextState.activeTemplateId);
@@ -543,7 +550,7 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
     lastAppliedSceneRef.current = serialized;
     if (!apiRef.current) return;
     restoreScene(apiRef.current, nextScene, canEdit);
-  }, [canEdit, scene]);
+  }, [canEdit, scene, scopeKey]);
 
   useEffect(() => () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -557,7 +564,8 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
     activeTemplateIdRef.current = activeTemplateId;
   }, [activeTemplateId]);
 
-  const persistRegistry = (nextTemplates: WhiteboardTemplateEntry[], nextActiveTemplateId: string, nextActiveScene: WhiteboardTemplateScene, reason: "auto" | "manual" = "auto") => {
+  const persistRegistry = (nextTemplates: WhiteboardTemplateEntry[], nextActiveTemplateId: string, nextActiveScene: WhiteboardTemplateScene, reason: "auto" | "manual" = "auto", expectedScopeKey = scopeKeyRef.current) => {
+    if (scopeKeyRef.current !== expectedScopeKey) return;
     const nextWorkspaceScene = sceneFromTemplateScene(nextActiveScene, nextTemplates, nextActiveTemplateId);
     lastAppliedSceneRef.current = JSON.stringify(nextWorkspaceScene);
     setTemplateRegistry(nextTemplates);
@@ -579,17 +587,18 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
     );
   };
 
-  const saveActiveScene = (nextActiveScene: WhiteboardTemplateScene, nextActiveTemplateId = activeTemplateId, nextRegistry = templateRegistry) => {
+  const saveActiveScene = (nextActiveScene: WhiteboardTemplateScene, nextActiveTemplateId = activeTemplateId, nextRegistry = templateRegistry, expectedScopeKey = scopeKeyRef.current) => {
     const updatedTemplates = nextRegistry.map((template) => (
       template.id === nextActiveTemplateId
         ? { ...template, scene: nextActiveScene, updatedAt: nextActiveScene.updatedAt }
         : template
     ));
-    persistRegistry(updatedTemplates, nextActiveTemplateId, nextActiveScene);
+    persistRegistry(updatedTemplates, nextActiveTemplateId, nextActiveScene, "auto", expectedScopeKey);
     return updatedTemplates;
   };
 
-  const flushSave = (overrideScene?: WhiteboardTemplateScene, overrideActiveTemplateId?: string, overrideRegistry?: WhiteboardTemplateEntry[], reason: "auto" | "manual" = "manual") => {
+  const flushSave = (overrideScene?: WhiteboardTemplateScene, overrideActiveTemplateId?: string, overrideRegistry?: WhiteboardTemplateEntry[], reason: "auto" | "manual" = "manual", expectedScopeKey = scopeKeyRef.current) => {
+    if (scopeKeyRef.current !== expectedScopeKey) return;
     if (!onSceneChange) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     const nextActiveScene = overrideScene ?? captureCurrentScene();
@@ -600,13 +609,15 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
         ? { ...template, scene: nextActiveScene, updatedAt: nextActiveScene.updatedAt }
         : template
     ));
-    persistRegistry(nextTemplates, nextActiveId, nextActiveScene, reason);
+    persistRegistry(nextTemplates, nextActiveId, nextActiveScene, reason, expectedScopeKey);
   };
 
   const persistScene = (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
     if (!onSceneChange) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    const scheduledScopeKey = scopeKeyRef.current;
     timeoutRef.current = setTimeout(() => {
+      if (scopeKeyRef.current !== scheduledScopeKey) return;
       const nextScene = buildPersistedScene(elements, appState, files);
       const currentRegistry = templateRegistryRef.current;
       const currentActiveTemplateId = activeTemplateIdRef.current;
@@ -617,13 +628,14 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
       ));
       const serialized = JSON.stringify(sceneFromTemplateScene(nextScene, nextTemplates, currentActiveTemplateId));
       if (serialized === lastAppliedSceneRef.current) return;
-      persistRegistry(nextTemplates, currentActiveTemplateId, nextScene, "auto");
+      persistRegistry(nextTemplates, currentActiveTemplateId, nextScene, "auto", scheduledScopeKey);
     }, 500);
   };
 
   const applyTemplate = async (templateId: string) => {
     if (!canEdit || !apiRef.current || applyingTemplateId) return;
-    flushSave(undefined, undefined, undefined, "auto");
+    const expectedScopeKey = scopeKeyRef.current;
+    flushSave(undefined, undefined, undefined, "auto", expectedScopeKey);
     const currentScene = captureCurrentScene();
     const currentTemplates = templateRegistryRef.current.map((template) => (
       template.id === activeTemplateIdRef.current
@@ -643,6 +655,7 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
         : builtinTemplate
           ? await buildTemplateScene(builtinTemplate.id)
           : createTemplateScene([]);
+      if (scopeKeyRef.current !== expectedScopeKey) return;
       const nextTemplates = currentTemplates.map((template) => (
         template.id === templateId
           ? { ...template, hidden: false, scene: nextScene, updatedAt: nextScene.updatedAt }
@@ -650,12 +663,14 @@ export function WhiteboardCanvas({ scene, onSceneChange, canEdit }: { scene?: Wh
       ));
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       restoreScene(apiRef.current, nextScene, canEdit);
-      persistRegistry(nextTemplates, templateId, nextScene, "auto");
+      persistRegistry(nextTemplates, templateId, nextScene, "auto", expectedScopeKey);
       if (!reusingSavedScene) {
         window.requestAnimationFrame(() => {
+          if (scopeKeyRef.current !== expectedScopeKey) return;
           apiRef.current?.scrollToContent(undefined, { fitToContent: true });
           window.requestAnimationFrame(() => {
-            saveActiveScene(captureCurrentScene(), templateId, nextTemplates);
+            if (scopeKeyRef.current !== expectedScopeKey) return;
+            saveActiveScene(captureCurrentScene(), templateId, nextTemplates, expectedScopeKey);
           });
         });
       }

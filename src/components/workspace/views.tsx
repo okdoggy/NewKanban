@@ -545,7 +545,7 @@ export function ProjectsView({ activeTab, onTabChange, tasks, onDropTask, onOpen
   );
 }
 
-export function CollaborateView({ canEdit, scene, onSceneChange }: { canEdit: boolean; scene?: WhiteboardScene; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; }) {
+export function CollaborateView({ canEdit, scene, onSceneChange, workspaceId }: { canEdit: boolean; scene?: WhiteboardScene; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; workspaceId: string; }) {
   return (
     <div className="space-y-6">
       <Card className="glass-surface border-0">
@@ -553,7 +553,7 @@ export function CollaborateView({ canEdit, scene, onSceneChange }: { canEdit: bo
           <CardTitle className="font-heading text-4xl">Collaborate</CardTitle>
         </CardHeader>
       </Card>
-      <WhiteboardView canEdit={canEdit} onSceneChange={onSceneChange} scene={scene} />
+      <WhiteboardView canEdit={canEdit} onSceneChange={onSceneChange} scene={scene} scopeKey={workspaceId} />
     </div>
   );
 }
@@ -1228,11 +1228,11 @@ export function CalendarView({ monthCursor, monthGrid, calendarViewMode, onCalen
   );
 }
 
-export function WhiteboardView({ canEdit, scene, onSceneChange }: { canEdit: boolean; scene?: WhiteboardScene; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; }) {
+export function WhiteboardView({ canEdit, scene, onSceneChange, scopeKey }: { canEdit: boolean; scene?: WhiteboardScene; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; scopeKey: string; }) {
   return (
     <Card className="glass-surface border-0 overflow-hidden">
       <CardContent>
-        <WhiteboardCanvas canEdit={canEdit} onSceneChange={onSceneChange} scene={scene} />
+        <WhiteboardCanvas canEdit={canEdit} onSceneChange={onSceneChange} scene={scene} scopeKey={scopeKey} />
       </CardContent>
     </Card>
   );

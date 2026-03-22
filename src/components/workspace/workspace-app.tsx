@@ -280,6 +280,7 @@ export function WorkspaceApp() {
   }, []);
 
   const lastActiveWorkspaceIdRef = useRef<string | null>(null);
+  const activeWorkspaceIdRef = useRef<string>("");
 
   useEffect(() => {
     if (!currentUser) return;
@@ -290,8 +291,10 @@ export function WorkspaceApp() {
     const activeWorkspaceId = snapshot?.activeWorkspaceId ?? workspace?.id ?? null;
     if (!activeWorkspaceId) {
       lastActiveWorkspaceIdRef.current = null;
+      activeWorkspaceIdRef.current = "";
       return;
     }
+    activeWorkspaceIdRef.current = activeWorkspaceId;
     if (lastActiveWorkspaceIdRef.current && lastActiveWorkspaceIdRef.current !== activeWorkspaceId) {
       reconnect();
     }
@@ -368,7 +371,7 @@ export function WorkspaceApp() {
       return;
     }
     setWhiteboardScene({ elements: [], appState: {}, files: {}, version: 0, updatedAt: new Date().toISOString() });
-  }, [workspace?.whiteboardScene]);
+  }, [workspace?.id, workspace?.whiteboardScene]);
 
   useEffect(() => {
     if (!selectedTask) return;
@@ -799,9 +802,12 @@ export function WorkspaceApp() {
   }, [emitAck, patchTaskLocally, permissions?.editWorkspace]);
 
   const saveWhiteboardScene = useCallback(async (scene: WhiteboardScene, reason: "auto" | "manual" = "auto") => {
+    const expectedWorkspaceId = activeWorkspaceId;
+    if (!expectedWorkspaceId) return;
+    if (activeWorkspaceIdRef.current !== expectedWorkspaceId) return;
     setWhiteboardScene(scene);
     setSnapshot((current) => {
-      if (!current?.workspace) return current;
+      if (!current?.workspace || current.workspace.id !== expectedWorkspaceId) return current;
       return {
         ...current,
         workspace: {
@@ -811,12 +817,13 @@ export function WorkspaceApp() {
       };
     });
     try {
+      if (activeWorkspaceIdRef.current !== expectedWorkspaceId) return;
       await emitAck("whiteboard:save", scene as unknown as Record<string, unknown>);
       if (reason === "manual") setSurfaceNotice({ message: "Canvas saved.", tone: "success" });
     } catch (error) {
       reportError(error, "Unable to save canvas.");
     }
-  }, [emitAck, reportError, setSnapshot]);
+  }, [activeWorkspaceId, emitAck, reportError, setSnapshot]);
 
   const createSavedView = useCallback(async (name: string) => {
     try {
@@ -1255,7 +1262,7 @@ export function WorkspaceApp() {
             {!workspaceHubOpen && view === "my-work" ? <MyWorkView dueTodayTasks={myDueTodayTasks} focusTasks={myFocusTasks} onOpenTask={openTaskDetail} recentTasks={myRecentTasks} waitingTasks={myWaitingTasks} /> : null}
             {!workspaceHubOpen && view === "projects" ? <ProjectsView activeTab={projectsTab} canEdit={permissions.editWorkspace} ganttGranularity={ganttGranularity} ganttRangeDays={ganttRangeDays} onDropTask={dropTaskToStatus} onGanttGranularityChange={(value) => { setGanttGranularity(value); setGanttRangeDays(value === "day" ? 60 : value === "week" ? 120 : 365); }} onOpenTask={openTaskDetail} onQuickCreate={quickCreateTask} onQuickPatch={(task, patch) => { void inlineUpdateTask(task.id, patch); }} onTabChange={setProjectsTab} onUpdateDependencies={updateTaskDependencies} onUpdateTaskDates={updateTaskDates} tasks={projectTasks} zoom={ganttZoom} onZoomChange={setGanttZoom} /> : null}
             {!workspaceHubOpen && view === "calendar" ? <CalendarView calendarViewMode={calendarViewMode} events={workspace.agenda} externalEvents={snapshot.externalAgenda ?? []} monthCursor={selectedDay} monthGrid={monthGrid} onCalendarViewModeChange={setCalendarViewMode} onCreateEvent={permissions.editCalendar ? (day) => openEventEditor(undefined, day) : undefined} onEditEvent={permissions.editCalendar ? openEventEditor : undefined} onMonthChange={setSelectedDay} onMoveEvent={permissions.editCalendar ? moveEventWindow : undefined} onResizeEvent={permissions.editCalendar ? resizeEventWindow : undefined} onSelectDay={setSelectedDay} selectedDay={selectedDay} /> : null}
-            {!workspaceHubOpen && view === "collaborate" ? <CollaborateView canEdit={permissions.editNotes} onSceneChange={permissions.editNotes ? saveWhiteboardScene : undefined} scene={whiteboardScene} /> : null}
+            {!workspaceHubOpen && view === "collaborate" ? <CollaborateView canEdit={permissions.editNotes} onSceneChange={permissions.editNotes ? saveWhiteboardScene : undefined} scene={whiteboardScene} workspaceId={workspace.id} /> : null}
           </main>
         </div>
       </div>
