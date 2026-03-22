@@ -102,15 +102,6 @@ interface WorkspaceDirectoryItem {
   joinRequested?: boolean;
 }
 
-interface WorkspaceJoinRequestItem {
-  id: string;
-  workspaceId: string;
-  workspaceName: string;
-  requesterName: string;
-  requesterEmail?: string;
-  requestedAt?: string;
-}
-
 interface WorkspaceNotificationItem {
   id: string;
   type: "workspace-request" | "message";
@@ -240,16 +231,12 @@ export function WorkspaceApp() {
   const [workspaceHubOpen, setWorkspaceHubOpen] = useState(false);
   const [workspaceCatalog, setWorkspaceCatalog] = useState<WorkspaceCatalogItem[]>([]);
   const [workspaceDirectory, setWorkspaceDirectory] = useState<WorkspaceDirectoryItem[]>([]);
-  const [workspaceJoinRequests, setWorkspaceJoinRequests] = useState<WorkspaceJoinRequestItem[]>([]);
   const [managedWorkspace, setManagedWorkspace] = useState<WorkspaceCatalogItem | null>(null);
   const [managedWorkspaceMembers, setManagedWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [updatingWorkspaceMemberId, setUpdatingWorkspaceMemberId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<WorkspaceNotificationItem[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [workspaceCreateName, setWorkspaceCreateName] = useState("");
-  const [workspaceJoinValue, setWorkspaceJoinValue] = useState("");
-  const [selectedJoinWorkspaceId, setSelectedJoinWorkspaceId] = useState<string | null>(null);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [ganttGranularity, setGanttGranularity] = useState<"day" | "week" | "month">("week");
   const [ganttRangeDays, setGanttRangeDays] = useState(120);
@@ -321,7 +308,6 @@ export function WorkspaceApp() {
           ],
         );
         setWorkspaceDirectory((payload?.discoverableWorkspaces as WorkspaceDirectoryItem[] | undefined) ?? []);
-        setWorkspaceJoinRequests((payload?.requests as WorkspaceJoinRequestItem[] | undefined) ?? []);
       } else {
         setWorkspaceCatalog([
           {
@@ -333,7 +319,6 @@ export function WorkspaceApp() {
           },
         ]);
         setWorkspaceDirectory([]);
-        setWorkspaceJoinRequests([]);
       }
 
       if (notificationsResponse.ok) {
@@ -353,7 +338,6 @@ export function WorkspaceApp() {
         },
       ]);
       setWorkspaceDirectory([]);
-      setWorkspaceJoinRequests([]);
       setNotifications([]);
     }
   }, [currentUser?.role, members.length, snapshot?.authenticated, workspace]);
@@ -876,19 +860,17 @@ export function WorkspaceApp() {
     }
   }, [emitAck]);
 
-  const createWorkspace = useCallback(async () => {
-    if (!workspaceCreateName.trim()) return;
+  const createWorkspace = useCallback(async (name: string) => {
+    if (!name.trim()) return;
     setWorkspaceBusy(true);
     try {
       const response = await fetch("/api/workspaces/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: workspaceCreateName.trim() }),
+        body: JSON.stringify({ name: name.trim() }),
       });
       const payload = await readJsonSafe(response);
       if (!response.ok) throw new Error(payload?.message ?? "Unable to create workspace.");
-      setWorkspaceCreateName("");
-      setWorkspaceHubOpen(false);
       await loadBootstrap();
       await loadWorkspaceShellData();
     } catch (error) {
@@ -896,28 +878,26 @@ export function WorkspaceApp() {
     } finally {
       setWorkspaceBusy(false);
     }
-  }, [loadBootstrap, loadWorkspaceShellData, reportError, workspaceCreateName]);
+  }, [loadBootstrap, loadWorkspaceShellData, reportError]);
 
-  const requestWorkspaceJoin = useCallback(async () => {
-    if (!selectedJoinWorkspaceId) return;
+  const requestWorkspaceJoin = useCallback(async (workspaceId: string) => {
+    if (!workspaceId) return;
     setWorkspaceBusy(true);
     try {
       const response = await fetch("/api/workspaces/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: selectedJoinWorkspaceId }),
+        body: JSON.stringify({ workspaceId }),
       });
       const payload = await readJsonSafe(response);
       if (!response.ok) throw new Error(payload?.message ?? "Unable to request workspace access.");
-      setWorkspaceJoinValue("");
-      setSelectedJoinWorkspaceId(null);
       await loadWorkspaceShellData();
     } catch (error) {
       reportError(error, "Unable to request workspace access.");
     } finally {
       setWorkspaceBusy(false);
     }
-  }, [loadWorkspaceShellData, reportError, selectedJoinWorkspaceId]);
+  }, [loadWorkspaceShellData, reportError]);
 
   const switchWorkspace = useCallback(async (workspaceId: string) => {
     setWorkspaceBusy(true);
@@ -1022,6 +1002,11 @@ export function WorkspaceApp() {
       await loadWorkspaceShellData();
       return;
     }
+    if (notification.type === "workspace-request" && action === "open") {
+      setWorkspaceHubOpen(true);
+      await loadWorkspaceShellData();
+      return;
+    }
     if (notification.workspaceId && action === "open") {
       await switchWorkspace(notification.workspaceId);
       await loadWorkspaceShellData();
@@ -1040,8 +1025,10 @@ export function WorkspaceApp() {
         body: notification.detail,
         kind: notification.type === "workspace-request" ? "requests" : "system",
         createdAt: notification.createdAt ?? new Date().toISOString(),
-        ctaLabel: notification.type === "workspace-request" ? "Review" : "Open",
-        secondaryLabel: notification.type === "workspace-request" ? "Approve" : undefined,
+        ctaLabel: notification.type === "workspace-request" ? "Approve" : "Open",
+        primaryAction: notification.type === "workspace-request" ? "approve" : "open",
+        secondaryLabel: notification.type === "workspace-request" ? "Reject" : undefined,
+        secondaryAction: notification.type === "workspace-request" ? "reject" : undefined,
         unread: notification.unread !== false,
       });
     }
@@ -1056,6 +1043,7 @@ export function WorkspaceApp() {
         actorColor: task.assigneeColor,
         createdAt: task.updatedAt,
         ctaLabel: "Open task",
+        primaryAction: "open",
       });
     }
 
@@ -1071,6 +1059,7 @@ export function WorkspaceApp() {
           actorColor: mentionComment.authorColor,
           createdAt: mentionComment.createdAt,
           ctaLabel: "Reply",
+          primaryAction: "open",
         });
       }
     }
@@ -1094,7 +1083,7 @@ export function WorkspaceApp() {
   const handleInboxOpen = useCallback(async (item: InboxEntry) => {
     const directNotification = notifications.find((notification) => notification.id === item.id);
     if (directNotification) {
-      await handleNotificationAction(directNotification, directNotification.type === "workspace-request" ? "open" : "open");
+      await handleNotificationAction(directNotification, "open");
       setView("inbox");
       return;
     }
@@ -1106,10 +1095,19 @@ export function WorkspaceApp() {
     setView("inbox");
   }, [handleNotificationAction, notifications, openTaskDetail, setView, workspace?.tasks]);
 
+  const handleInboxPrimary = useCallback(async (item: InboxEntry) => {
+    const directNotification = notifications.find((notification) => notification.id === item.id);
+    if (directNotification) {
+      await handleNotificationAction(directNotification, item.primaryAction ?? "open");
+      return;
+    }
+    await handleInboxOpen(item);
+  }, [handleInboxOpen, handleNotificationAction, notifications]);
+
   const handleInboxSecondary = useCallback(async (item: InboxEntry) => {
     const directNotification = notifications.find((notification) => notification.id === item.id);
-    if (!directNotification || directNotification.type !== "workspace-request" || !directNotification.requestId) return;
-    await handleNotificationAction(directNotification, "approve");
+    if (!directNotification) return;
+    await handleNotificationAction(directNotification, item.secondaryAction ?? "reject");
   }, [handleNotificationAction, notifications]);
 
   if (loading) return <LoadingScreen />;
@@ -1246,9 +1244,9 @@ export function WorkspaceApp() {
           {snapshot.enterpriseMeta?.licenseWarning ? <div className="rounded-[22px] bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-[inset_0_0_0_1px_rgba(244,63,94,0.16)]">{snapshot.enterpriseMeta.licenseWarning}</div> : null}
 
           <main className="min-w-0 space-y-4">
-            {workspaceHubOpen ? <WorkspaceHubView busy={workspaceBusy} createName={workspaceCreateName} discoverableWorkspaces={workspaceDirectory} joinValue={workspaceJoinValue} onCreateNameChange={setWorkspaceCreateName} onCreateWorkspace={createWorkspace} onDeleteWorkspace={deleteWorkspace} onJoinValueChange={(value) => { setWorkspaceJoinValue(value); setSelectedJoinWorkspaceId(null); }} onJoinWorkspace={requestWorkspaceJoin} onManageWorkspace={openWorkspaceManager} onRespondRequest={respondToWorkspaceRequest} onSelectJoinWorkspace={(workspaceId, workspaceName) => { setSelectedJoinWorkspaceId(workspaceId); setWorkspaceJoinValue(workspaceName); }} onSwitchWorkspace={switchWorkspace} requests={workspaceJoinRequests} selectedJoinWorkspaceId={selectedJoinWorkspaceId} workspaces={workspaceCatalog} /> : null}
+            {workspaceHubOpen ? <WorkspaceHubView busy={workspaceBusy} discoverableWorkspaces={workspaceDirectory} onCreateWorkspace={createWorkspace} onDeleteWorkspace={deleteWorkspace} onJoinWorkspace={requestWorkspaceJoin} onManageWorkspace={openWorkspaceManager} onSwitchWorkspace={switchWorkspace} workspaces={workspaceCatalog} /> : null}
             {!workspaceHubOpen && view === "home" ? <HomeView focusTasks={focusTasks} inboxCount={inboxEntries.length} onOpenInbox={() => { setWorkspaceHubOpen(false); setView("inbox"); }} onOpenCalendar={() => setView("calendar")} onOpenCollaborate={() => { setView("collaborate"); }} onOpenTask={openTaskDetail} recentDecisionNotes={recentDecisionNotes} reviewTasks={waitingTasks} upcomingEvents={upcomingEvents} /> : null}
-            {!workspaceHubOpen && view === "inbox" ? <InboxView activeFilter={inboxFilter} items={filteredInboxEntries} onFilterChange={setInboxFilter} onOpenItem={(item) => void handleInboxOpen(item)} onSecondaryAction={(item) => void handleInboxSecondary(item)} /> : null}
+            {!workspaceHubOpen && view === "inbox" ? <InboxView activeFilter={inboxFilter} items={filteredInboxEntries} onFilterChange={setInboxFilter} onOpenItem={(item) => void handleInboxOpen(item)} onPrimaryAction={(item) => void handleInboxPrimary(item)} onSecondaryAction={(item) => void handleInboxSecondary(item)} /> : null}
             {!workspaceHubOpen && view === "my-work" ? <MyWorkView dueTodayTasks={myDueTodayTasks} focusTasks={myFocusTasks} onOpenTask={openTaskDetail} recentTasks={myRecentTasks} waitingTasks={myWaitingTasks} /> : null}
             {!workspaceHubOpen && view === "projects" ? <ProjectsView activeTab={projectsTab} canEdit={permissions.editWorkspace} ganttGranularity={ganttGranularity} ganttRangeDays={ganttRangeDays} onDropTask={dropTaskToStatus} onGanttGranularityChange={(value) => { setGanttGranularity(value); setGanttRangeDays(value === "day" ? 60 : value === "week" ? 120 : 365); }} onOpenTask={openTaskDetail} onQuickCreate={quickCreateTask} onQuickPatch={(task, patch) => { void inlineUpdateTask(task.id, patch); }} onTabChange={setProjectsTab} onUpdateDependencies={updateTaskDependencies} onUpdateTaskDates={updateTaskDates} tasks={projectTasks} zoom={ganttZoom} onZoomChange={setGanttZoom} /> : null}
             {!workspaceHubOpen && view === "calendar" ? <CalendarView calendarViewMode={calendarViewMode} events={workspace.agenda} externalEvents={snapshot.externalAgenda ?? []} monthCursor={selectedDay} monthGrid={monthGrid} onCalendarViewModeChange={setCalendarViewMode} onCreateEvent={permissions.editCalendar ? (day) => openEventEditor(undefined, day) : undefined} onEditEvent={permissions.editCalendar ? openEventEditor : undefined} onMonthChange={setSelectedDay} onMoveEvent={permissions.editCalendar ? moveEventWindow : undefined} onResizeEvent={permissions.editCalendar ? resizeEventWindow : undefined} onSelectDay={setSelectedDay} selectedDay={selectedDay} /> : null}

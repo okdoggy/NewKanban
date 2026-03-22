@@ -19,6 +19,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -62,7 +64,7 @@ import type {
   Workspace,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { formatWorkspaceName, matchesWorkspaceQuery } from "@/lib/workspace-naming";
+import { formatWorkspaceName } from "@/lib/workspace-naming";
 
 const ganttHeaderHeight = 52;
 const ganttSidebarWidth = 280;
@@ -176,17 +178,9 @@ interface WorkspaceDiscoverableItem {
   joinRequested?: boolean;
 }
 
-interface WorkspaceRequestItem {
-  id: string;
-  workspaceId: string;
-  workspaceName: string;
-  requesterName: string;
-  requesterEmail?: string;
-  requestedAt?: string;
-}
-
 export type InboxFilter = "all" | "assigned" | "mentions" | "requests" | "system";
 export type ProjectsTab = "board" | "timeline" | "list";
+export type InboxAction = "open" | "approve" | "reject";
 
 export interface InboxEntry {
   id: string;
@@ -197,7 +191,9 @@ export interface InboxEntry {
   actorColor?: string;
   createdAt: string;
   ctaLabel: string;
+  primaryAction?: InboxAction;
   secondaryLabel?: string;
+  secondaryAction?: InboxAction;
   unread?: boolean;
 }
 
@@ -357,118 +353,132 @@ export function OverviewView({
   );
 }
 
-export function WorkspaceHubView({ workspaces, discoverableWorkspaces, requests, createName, joinValue, selectedJoinWorkspaceId, busy, onCreateNameChange, onJoinValueChange, onCreateWorkspace, onJoinWorkspace, onSelectJoinWorkspace, onSwitchWorkspace, onManageWorkspace, onDeleteWorkspace, onRespondRequest }: { workspaces: WorkspaceHubItem[]; discoverableWorkspaces: WorkspaceDiscoverableItem[]; requests: WorkspaceRequestItem[]; createName: string; joinValue: string; selectedJoinWorkspaceId: string | null; busy: boolean; onCreateNameChange: (value: string) => void; onJoinValueChange: (value: string) => void; onCreateWorkspace: () => void; onJoinWorkspace: () => void; onSelectJoinWorkspace: (workspaceId: string, workspaceName: string) => void; onSwitchWorkspace: (workspaceId: string) => void; onManageWorkspace: (workspaceId: string) => void; onDeleteWorkspace: (workspaceId: string) => void; onRespondRequest: (requestId: string, decision: "approve" | "reject") => void; }) {
-  const joinSuggestions = useMemo(
-    () => discoverableWorkspaces
-      .filter((workspace) => matchesWorkspaceQuery(workspace, joinValue))
-      .sort((left, right) => Number(left.joinRequested) - Number(right.joinRequested) || formatWorkspaceName(left.name).localeCompare(formatWorkspaceName(right.name)))
-      .slice(0, 6),
-    [discoverableWorkspaces, joinValue],
-  );
+export function WorkspaceHubView({ workspaces, discoverableWorkspaces, busy, onCreateWorkspace, onJoinWorkspace, onSwitchWorkspace, onManageWorkspace, onDeleteWorkspace }: { workspaces: WorkspaceHubItem[]; discoverableWorkspaces: WorkspaceDiscoverableItem[]; busy: boolean; onCreateWorkspace: (name: string) => Promise<void> | void; onJoinWorkspace: (workspaceId: string) => Promise<void> | void; onSwitchWorkspace: (workspaceId: string) => void; onManageWorkspace: (workspaceId: string) => void; onDeleteWorkspace: (workspaceId: string) => void; }) {
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState("");
+  const [joinDialogWorkspaceId, setJoinDialogWorkspaceId] = useState<string | null>(null);
 
-  const selectedJoinWorkspace = selectedJoinWorkspaceId
-    ? discoverableWorkspaces.find((workspace) => workspace.id === selectedJoinWorkspaceId) ?? null
+  const allWorkspaces = useMemo(() => {
+    const joinedIds = new Set(workspaces.map((workspace) => workspace.id));
+    const joinedRows = workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+      role: workspace.role,
+      memberCount: workspace.memberCount ?? 0,
+      pendingRequestCount: workspace.pendingRequestCount ?? 0,
+      isActive: Boolean(workspace.isActive),
+      joined: true,
+      joinRequested: false,
+    }));
+    const discoverableRows = discoverableWorkspaces
+      .filter((workspace) => !joinedIds.has(workspace.id))
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        role: null,
+        memberCount: workspace.memberCount ?? 0,
+        pendingRequestCount: 0,
+        isActive: false,
+        joined: false,
+        joinRequested: Boolean(workspace.joinRequested),
+      }));
+
+    return [...joinedRows, ...discoverableRows].sort((left, right) =>
+      Number(right.isActive) - Number(left.isActive)
+      || Number(right.joined) - Number(left.joined)
+      || formatWorkspaceName(left.name).localeCompare(formatWorkspaceName(right.name)));
+  }, [discoverableWorkspaces, workspaces]);
+
+  const joinDialogWorkspace = joinDialogWorkspaceId
+    ? allWorkspaces.find((workspace) => workspace.id === joinDialogWorkspaceId) ?? null
     : null;
 
   return (
     <div className="space-y-4">
-      <div className="px-1">
+      <div className="flex items-center justify-between gap-3 px-1">
         <h1 className="font-heading text-3xl tracking-tight">Workspaces</h1>
+        <Button onClick={() => setCreateDialogOpen(true)} size="sm">Create</Button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4">
-          <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl">My workspaces</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {workspaces.length > 0 ? workspaces.map((workspace) => (
-                <div className="flex items-center justify-between gap-3 rounded-[18px] bg-slate-50 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" key={workspace.id}>
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate font-semibold">{formatWorkspaceName(workspace.name)}</p>
-                      <Badge className={cn("rounded-full border-0", workspace.role === "owner" ? "bg-emerald-100 text-emerald-700" : workspace.role === "editor" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600")}>{workspace.role}</Badge>
-                      {workspace.isActive ? <Badge className="rounded-full bg-primary/10 text-primary">active</Badge> : null}
-                    </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {workspace.memberCount ?? 0} member{workspace.memberCount === 1 ? "" : "s"}
-                      {workspace.pendingRequestCount ? ` · ${workspace.pendingRequestCount} request${workspace.pendingRequestCount === 1 ? "" : "s"}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button onClick={() => onSwitchWorkspace(workspace.id)} size="sm" variant="outline">Open</Button>
-                    {workspace.role === "owner" ? <Button onClick={() => onManageWorkspace(workspace.id)} size="sm" variant="outline">Manage</Button> : null}
-                    {workspace.role === "owner" ? <Button onClick={() => onDeleteWorkspace(workspace.id)} size="sm" variant="ghost">Delete</Button> : null}
-                  </div>
-                </div>
-              )) : <EmptyStateCard description="Create your first workspace or request access to an existing one." title="No workspaces yet" />}
-            </CardContent>
-          </Card>
+      <Card className="border-0 bg-white/90 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
+        <CardContent className="p-0">
+          <div className="max-h-[70vh] overflow-auto">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="border-b bg-background/95">
+                  <TableHead className="sticky top-0 z-10 w-[32%] bg-background/95">Workspace</TableHead>
+                  <TableHead className="sticky top-0 z-10 w-[18%] bg-background/95">Status</TableHead>
+                  <TableHead className="sticky top-0 z-10 w-[12%] bg-background/95">Members</TableHead>
+                  <TableHead className="sticky top-0 z-10 w-[38%] bg-background/95 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allWorkspaces.length > 0 ? allWorkspaces.map((workspace) => (
+                  <TableRow key={workspace.id}>
+                    <TableCell className="truncate py-3 font-medium">{formatWorkspaceName(workspace.name)}</TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {workspace.role ? <Badge className={cn("rounded-full border-0", workspace.role === "owner" ? "bg-emerald-100 text-emerald-700" : workspace.role === "editor" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600")}>{workspace.role}</Badge> : <Badge className="rounded-full bg-slate-100 text-slate-600">available</Badge>}
+                        {workspace.isActive ? <Badge className="rounded-full bg-primary/10 text-primary">active</Badge> : null}
+                        {workspace.joinRequested ? <Badge className="rounded-full bg-slate-100 text-slate-600">requested</Badge> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3 text-sm text-muted-foreground">{workspace.memberCount}</TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex justify-end gap-2">
+                        <Button disabled={!workspace.joined} onClick={() => onSwitchWorkspace(workspace.id)} size="sm" variant="outline">Open</Button>
+                        {workspace.role === "owner" ? <Button onClick={() => onManageWorkspace(workspace.id)} size="sm" variant="outline">Manage</Button> : null}
+                        {workspace.role === "owner" ? <Button onClick={() => onDeleteWorkspace(workspace.id)} size="sm" variant="ghost">Delete</Button> : null}
+                        <Button disabled={workspace.joined || workspace.joinRequested || busy} onClick={() => setJoinDialogWorkspaceId(workspace.id)} size="sm" variant="outline">
+                          {workspace.joined ? "Joined" : workspace.joinRequested ? "Requested" : "Join"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )) : <TableRow><TableCell className="py-8 text-center text-sm text-muted-foreground" colSpan={4}>No workspaces yet.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
-          {requests.length > 0 ? <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl">Pending requests</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {requests.length > 0 ? requests.map((request) => (
-                <div className="flex items-center justify-between gap-3 rounded-[18px] bg-slate-50 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" key={request.id}>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{request.requesterName} · {request.requesterEmail ?? "No email"} · {formatWorkspaceName(request.workspaceName)}{request.requestedAt ? ` · ${formatDate(parseDate(request.requestedAt), { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => onRespondRequest(request.id, "approve")} size="sm">Approve</Button>
-                    <Button onClick={() => onRespondRequest(request.id, "reject")} size="sm" variant="outline">Reject</Button>
-                  </div>
-                </div>
-              )) : null}
-            </CardContent>
-          </Card> : null}
-        </div>
+      <Dialog onOpenChange={setCreateDialogOpen} open={createDialogOpen}>
+        <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-5 py-4"><DialogTitle>Create workspace</DialogTitle></DialogHeader>
+          <div className="space-y-4 px-5 py-5">
+            <Input autoFocus onChange={(event) => setCreateDraft(event.target.value)} placeholder="Workspace name" value={createDraft} />
+          </div>
+          <DialogFooter className="mt-0" showCloseButton>
+            <Button disabled={busy || !createDraft.trim()} onClick={async () => { await onCreateWorkspace(createDraft.trim()); setCreateDraft(""); setCreateDialogOpen(false); }}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Manage</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Create</p>
-              <div className="flex gap-2">
-                <input className="input-shell flex-1" disabled={busy} onChange={(event) => onCreateNameChange(event.target.value)} placeholder="Workspace name" value={createName} />
-                <Button disabled={busy || !createName.trim()} onClick={onCreateWorkspace}>Create</Button>
-              </div>
-            </div>
-
-            <div className="space-y-2 border-t pt-4">
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Join</p>
-              <input className="input-shell" disabled={busy} onChange={(event) => onJoinValueChange(event.target.value)} placeholder="Search workspace name" value={joinValue} />
-              {joinValue.trim() ? (
-                <div className="space-y-2">
-                  {joinSuggestions.length > 0 ? joinSuggestions.map((workspace) => (
-                    <button
-                      className={cn("flex w-full items-center justify-between rounded-[16px] bg-slate-50 px-3 py-2 text-left shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)] transition", selectedJoinWorkspaceId === workspace.id ? "bg-[#dfe7ff]" : "hover:bg-slate-100")}
-                      key={workspace.id}
-                      onClick={() => onSelectJoinWorkspace(workspace.id, formatWorkspaceName(workspace.name))}
-                      type="button"
-                    >
-                      <span className="min-w-0 truncate text-sm font-medium">{formatWorkspaceName(workspace.name)} · {workspace.memberCount ?? 0} member{workspace.memberCount === 1 ? "" : "s"}</span>
-                      {workspace.joinRequested ? <Badge className="rounded-full bg-slate-100 text-slate-600">Requested</Badge> : null}
-                    </button>
-                  )) : <div className="rounded-[16px] border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-muted-foreground">No matching workspaces.</div>}
-                </div>
-              ) : null}
-              <Button className="w-full" disabled={busy || !selectedJoinWorkspace || Boolean(selectedJoinWorkspace?.joinRequested)} onClick={onJoinWorkspace} variant="outline">
-                {selectedJoinWorkspace?.joinRequested ? "Requested" : "Request access"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Dialog onOpenChange={(open) => { if (!open) setJoinDialogWorkspaceId(null); }} open={Boolean(joinDialogWorkspace)}>
+        <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-5 py-4"><DialogTitle>Request access</DialogTitle></DialogHeader>
+          <div className="px-5 py-5 text-sm text-muted-foreground">
+            {joinDialogWorkspace ? `${formatWorkspaceName(joinDialogWorkspace.name)}의 owner에게 참가 여부 승인 메시지를 보내겠습니까?` : ""}
+          </div>
+          <DialogFooter className="mt-0" showCloseButton>
+            <Button
+              disabled={busy || !joinDialogWorkspace}
+              onClick={async () => {
+                if (!joinDialogWorkspace) return;
+                await onJoinWorkspace(joinDialogWorkspace.id);
+                setJoinDialogWorkspaceId(null);
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-export function InboxView({ activeFilter, onFilterChange, items, onOpenItem, onSecondaryAction }: { activeFilter: InboxFilter; onFilterChange: (value: InboxFilter) => void; items: InboxEntry[]; onOpenItem: (item: InboxEntry) => void; onSecondaryAction?: (item: InboxEntry) => void; }) {
+export function InboxView({ activeFilter, onFilterChange, items, onOpenItem, onPrimaryAction, onSecondaryAction }: { activeFilter: InboxFilter; onFilterChange: (value: InboxFilter) => void; items: InboxEntry[]; onOpenItem: (item: InboxEntry) => void; onPrimaryAction?: (item: InboxEntry) => void; onSecondaryAction?: (item: InboxEntry) => void; }) {
   const filters: Array<{ key: InboxFilter; label: string }> = [
     { key: "all", label: "All" },
     { key: "assigned", label: "Assigned" },
@@ -512,7 +522,7 @@ export function InboxView({ activeFilter, onFilterChange, items, onOpenItem, onS
                 </div>
               </button>
               <div className="flex shrink-0 gap-2">
-                <Button onClick={() => onOpenItem(item)} size="sm">{item.ctaLabel}</Button>
+                <Button onClick={() => (onPrimaryAction ?? onOpenItem)(item)} size="sm">{item.ctaLabel}</Button>
                 {item.secondaryLabel && onSecondaryAction ? <Button onClick={() => onSecondaryAction(item)} size="sm" variant="outline">{item.secondaryLabel}</Button> : null}
               </div>
             </div>
