@@ -22,14 +22,10 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
       MONGODB_URI: mongodb://mongo:27017/newkanban
       MONGODB_DB: newkanban
       WORKSPACE_ID: visualai-guest
-      APP_ISSUER: NewKanban
-      S3_REGION: ""
-      S3_BUCKET: ""
-      S3_ENDPOINT: ""
-      S3_PUBLIC_BASE_URL: ""
     ports:
       - "3000:3000"
     volumes:

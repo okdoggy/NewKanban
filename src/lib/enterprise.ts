@@ -12,6 +12,6 @@ export function getEnterpriseMeta(): EnterpriseMeta {
       requiresAck && !mongoLicenseAcknowledged
         ? "MongoDB Community Server licensing requires explicit enterprise review. Set MONGODB_LICENSE_ACKNOWLEDGED=true only after internal approval."
         : null,
-    optionalCapabilities: ["ics-readonly-sync", "s3-compatible-storage", "oidc-saml-ready"],
+    optionalCapabilities: ["local-file-storage", "workspace-scoped-whiteboard-assets", "oidc-saml-ready"],
   };
 }

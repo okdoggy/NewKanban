@@ -93,7 +93,7 @@ function buildEnterpriseMeta(): EnterpriseMeta {
     licenseWarning: enterpriseMode && !mongoLicenseAcknowledged
       ? "Enterprise mode requires explicit review of MongoDB Community Server SSPL before production rollout."
       : null,
-    optionalCapabilities: ["ICS read-only sync", "S3-compatible uploads", "OIDC/SAML integration roadmap"],
+    optionalCapabilities: ["Local file storage", "Workspace-scoped whiteboard assets", "OIDC/SAML integration roadmap"],
   };
 }
 

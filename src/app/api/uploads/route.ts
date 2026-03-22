@@ -1,7 +1,6 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { cookies } from "next/headers";
 
 import { ACTIVE_WORKSPACE_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/lib/auth";
@@ -11,20 +10,6 @@ import { mutateWorkspace } from "@/lib/workspace-server";
 import { emitWorkspaceRefresh } from "@/lib/realtime-bridge";
 
 export const dynamic = "force-dynamic";
-
-const s3Bucket = process.env.S3_BUCKET ?? "";
-const s3Region = process.env.S3_REGION ?? "";
-const s3Endpoint = process.env.S3_ENDPOINT ?? "";
-const s3PublicBaseUrl = process.env.S3_PUBLIC_BASE_URL ?? "";
-
-function getS3Client() {
-  if (!s3Bucket || !s3Region) return null;
-  return new S3Client({
-    region: s3Region,
-    endpoint: s3Endpoint || undefined,
-    forcePathStyle: Boolean(s3Endpoint),
-  });
-}
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -46,26 +31,10 @@ export async function POST(request: Request) {
   const bytes = Buffer.from(await file.arrayBuffer());
   const safeBaseName = file.name.replace(/[^a-zA-Z0-9.-]+/g, "-");
   const fileName = `${crypto.randomUUID()}-${safeBaseName}`;
-  let fileUrl = `/uploads/${fileName}`;
-  const s3Client = getS3Client();
-
-  if (s3Client) {
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: s3Bucket,
-        Key: fileName,
-        Body: bytes,
-        ContentType: file.type || "application/octet-stream",
-      }),
-    );
-    fileUrl = s3PublicBaseUrl
-      ? `${s3PublicBaseUrl.replace(/\/$/, "")}/${fileName}`
-      : `https://${s3Bucket}.s3.${s3Region}.amazonaws.com/${fileName}`;
-  } else {
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-    await writeFile(path.join(uploadsDir, fileName), bytes);
-  }
+  const fileUrl = `/uploads/${fileName}`;
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  await mkdir(uploadsDir, { recursive: true });
+  await writeFile(path.join(uploadsDir, fileName), bytes);
 
   const attachment = {
     id: crypto.randomUUID(),
@@ -160,18 +129,8 @@ export async function DELETE(request: Request) {
     return Response.json({ message: "Attachment not found." }, { status: 404 });
   }
 
-  const s3Client = getS3Client();
-  if (s3Client) {
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: s3Bucket,
-        Key: removedFileName,
-      }),
-    );
-  } else {
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await unlink(path.join(uploadsDir, removedFileName)).catch(() => undefined);
-  }
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  await unlink(path.join(uploadsDir, removedFileName)).catch(() => undefined);
 
   await emitWorkspaceRefresh(auth.workspaceId);
 

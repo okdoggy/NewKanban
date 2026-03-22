@@ -46,17 +46,7 @@ export function useWorkspaceSession({
         setLoading(false);
         return;
       }
-      let externalAgenda = data.externalAgenda ?? [];
-      try {
-        const externalResponse = await fetch("/api/calendar/external", { cache: "no-store" });
-        if (externalResponse.ok) {
-          const externalPayload = await externalResponse.json();
-          externalAgenda = externalPayload.externalAgenda ?? [];
-        }
-      } catch {
-        // External ICS feeds are optional.
-      }
-      setSnapshot({ ...data, externalAgenda });
+      setSnapshot({ ...data, externalAgenda: data.externalAgenda ?? [] });
       setAuthRequired(false);
       const current = parseDate(data.serverTime);
       setSelectedDay(current);

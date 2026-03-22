@@ -12,6 +12,16 @@ NewKanban은 **같은 망(LAN)에 있는 여러 PC가 하나의 서버 PC에 접
 즉, 사용자 브라우저가 각자 데이터를 따로 저장하는 구조가 아니라,
 **서버 PC의 MongoDB를 단일 소스 오브 트루스(single source of truth)** 로 사용한다.
 
+### 외부 클라우드 사용 여부
+
+현재 기준으로 NewKanban 런타임은 다음 외부 서비스를 사용하지 않는다.
+
+- S3 같은 외부 파일 저장소
+- 외부 ICS 캘린더 fetch
+- Excalidraw CDN 자산
+
+즉, **task / calendar / whiteboard / file 업로드는 서버 PC 내부 저장소와 MongoDB만 사용**한다.
+
 ---
 
 ## 1. 현재 동작 방식 요약
@@ -249,7 +259,23 @@ QA_BASE_URL=http://<서버PC-IP>:3000 QA_USER_A=admin.kim QA_USER_B=kildong.hong
 > `qa:lan`은 실제 MongoDB에 테스트용 user / workspace / task를 만든다.
 > 운영 DB에서 실행할 때는 주의해야 한다.
 
-## 8-5. MongoDB 직접 확인
+## 8-5. Whiteboard workspace 분리 검증
+
+```bash
+QA_BASE_URL=http://<서버PC-IP>:3000 QA_ACCOUNT_ID=whiteboard.qa QA_PASSWORD=1234 npm run qa:whiteboard
+```
+
+이 검증은 아래를 자동 확인한다.
+
+- 기본 workspace whiteboard 저장
+- 새 workspace 생성 후 별도 whiteboard 저장
+- workspace를 바꿔도 서로 다른 whiteboard가 섞이지 않음
+- whiteboardScene이 workspace별로 유지됨
+
+> `qa:whiteboard`도 실제 MongoDB에 테스트용 workspace/scene을 만든다.
+> 운영 DB에서는 실행 후 초기화를 권장한다.
+
+## 8-6. MongoDB 직접 확인
 
 Docker Compose 기준 예시:
 
@@ -272,17 +298,12 @@ printjson(workspaces);
 |---|---|---|
 | `PORT` | 앱 포트 | `3000` |
 | `HOSTNAME` | 바인드 주소 | `0.0.0.0` |
+| `NEXT_TELEMETRY_DISABLED` | Next.js telemetry 비활성화 | `1` |
 | `MONGODB_URI` | MongoDB 연결 문자열 | `mongodb://mongo:27017/newkanban` |
 | `MONGODB_DB` | DB 이름 | `newkanban` |
 | `WORKSPACE_ID` | 기본 workspace id | `visualai-guest` |
-| `APP_ISSUER` | MFA issuer label | `NewKanban` |
-| `S3_REGION` | 선택적 S3 업로드 region | `ap-northeast-2` |
-| `S3_BUCKET` | 선택적 S3 bucket | `my-kanban-files` |
-| `S3_ENDPOINT` | S3-compatible endpoint | `https://s3.amazonaws.com` |
-| `S3_PUBLIC_BASE_URL` | public file base url | `https://cdn.example.com` |
 | `ENTERPRISE_MODE` | enterprise 배포 경고 플래그 | `false` |
 | `MONGODB_LICENSE_ACKNOWLEDGED` | Mongo 라이선스 검토 확인 | `false` |
-| `ICS_FEED_URLS` | 외부 읽기 전용 캘린더 피드 | `https://.../calendar.ics` |
 
 ### 참고
 현재 로그인 플로우는 미리 owner 계정을 seed하지 않는다.
@@ -299,7 +320,14 @@ printjson(workspaces);
 
 즉, 파일도 각 사용자의 브라우저가 아니라 **서버 PC 저장소**를 사용한다.
 
-S3 환경 변수를 설정하면 업로드를 S3로 보낼 수도 있다.
+현재 코드는 **외부 S3 업로드를 사용하지 않는다.**
+업로드 파일은 항상 서버 PC 내부 볼륨에만 저장된다.
+
+또한 whiteboard(Excalidraw) 자산도 CDN이 아니라:
+
+- `/public/excalidraw-assets`
+
+에서 서버가 직접 제공한다.
 
 ---
 
@@ -317,7 +345,8 @@ S3 환경 변수를 설정하면 업로드를 S3로 보낼 수도 있다.
 이 경우 보통 필요한 작업은 다음이다.
 
 - `npm install` / `docker build` 시 외부 패키지 다운로드가 proxy를 타야 함
-- 선택 기능인 S3 / ICS 외부 접속도 proxy를 타야 할 수 있음
+- 운영 중 앱 데이터(task, file, whiteboard, calendar)는 외부 클라우드로 보내지 않음
+- 현재 Docker/server 실행에서는 `NEXT_TELEMETRY_DISABLED=1`로 telemetry도 비활성화됨
 
 #### 쉘 환경 변수로 설정
 
@@ -404,6 +433,15 @@ MONGODB_URI=mongodb://db.company.local:27017/newkanban
 
 Docker Compose에서도 `web.environment.MONGODB_URI`를 바꾸면 된다.
 
+### 11-4. 현재 차단된 외부 경로
+
+현재 코드 기준으로 아래는 사용하지 않도록 정리되어 있다.
+
+- S3 업로드
+- 외부 ICS 캘린더 fetch
+- Excalidraw CDN 자산 로드
+- Docker/서버 실행 시 Next.js telemetry
+
 ---
 
 ## 12. 운영 시 체크리스트
@@ -429,6 +467,7 @@ npm run typecheck  # TypeScript 검증
 npm run db:reset   # 로컬 DB 초기화
 npm run qa:views   # 기본 화면 smoke 검증
 npm run qa:lan     # LAN 실시간 협업 검증(데이터 생성됨)
+npm run qa:whiteboard # Whiteboard workspace 분리 검증(데이터 생성됨)
 ```
 
 ---
@@ -453,5 +492,5 @@ npm run qa:lan     # LAN 실시간 협업 검증(데이터 생성됨)
 - **같은 회사 망의 여러 PC가 같은 데이터 사용 가능**
 - **데이터는 서버 PC MongoDB에 저장**
 - **workspace별로 task / calendar / my work 분리 저장**
+- **whiteboard도 workspace별로 분리 저장**
 - **실시간 동기화 검증까지 완료**
-
