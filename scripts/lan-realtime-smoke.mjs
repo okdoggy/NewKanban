@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3000";
-const USER_A = process.env.QA_USER_A ?? process.env.DEMO_OWNER_EMAIL ?? "admin.kim";
+const USER_A = process.env.QA_USER_A ?? "admin.kim";
 const USER_B = process.env.QA_USER_B ?? "kildong.hong";
 const PASSWORD = process.env.QA_PASSWORD ?? "1234";
 const DEFAULT_WORKSPACE_ID = process.env.WORKSPACE_ID ?? "visualai-guest";

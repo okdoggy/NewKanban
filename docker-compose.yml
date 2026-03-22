@@ -25,9 +25,6 @@ services:
       MONGODB_URI: mongodb://mongo:27017/newkanban
       MONGODB_DB: newkanban
       WORKSPACE_ID: visualai-guest
-      DEMO_OWNER_EMAIL: admin.kim
-      DEMO_OWNER_PASSWORD: Admin123!
-      DEMO_OWNER_NAME: Admin Kim
       APP_ISSUER: NewKanban
       S3_REGION: ""
       S3_BUCKET: ""

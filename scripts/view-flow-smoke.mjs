@@ -1,6 +1,6 @@
 const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3000";
-const OWNER_EMAIL = process.env.DEMO_OWNER_EMAIL ?? "admin.kim";
-const OWNER_PASSWORD = process.env.DEMO_OWNER_PASSWORD ?? "Admin123!";
+const ACCOUNT_ID = process.env.QA_ACCOUNT_ID ?? "admin.kim";
+const PASSWORD = process.env.QA_PASSWORD ?? "Admin123!";
 
 function jarToCookie(jar) {
   return Object.entries(jar)
@@ -49,7 +49,7 @@ await waitForReady();
 const loginResponse = await request(`${BASE_URL}/api/auth/login`, {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ accountId: OWNER_EMAIL, password: OWNER_PASSWORD }),
+  body: JSON.stringify({ accountId: ACCOUNT_ID, password: PASSWORD }),
 }, jar);
 assert(loginResponse.ok, `Owner login failed with status ${loginResponse.status}`);
 
