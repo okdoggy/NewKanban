@@ -100,27 +100,6 @@ export function parseMentions(body: string) {
   return Array.from(new Set((body.match(/@([a-z0-9-]+)/gi) ?? []).map((value) => value.slice(1).toLowerCase())));
 }
 
-export function encodeBase32(buffer: Buffer) {
-  let bits = 0;
-  let value = 0;
-  let output = "";
-
-  for (const byte of buffer) {
-    value = (value << 8) | byte;
-    bits += 8;
-    while (bits >= 5) {
-      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
-      bits -= 5;
-    }
-  }
-
-  if (bits > 0) {
-    output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
-  }
-
-  return output;
-}
-
 export function decodeBase32(input: string) {
   const normalized = input.replace(/=+$/g, "").toUpperCase();
   let bits = 0;
@@ -139,10 +118,6 @@ export function decodeBase32(input: string) {
   }
 
   return Buffer.from(bytes);
-}
-
-export function generateTotpSecret() {
-  return encodeBase32(randomBytes(20));
 }
 
 export function generateTotpCode(secret: string, timestamp = Date.now()) {
@@ -167,8 +142,3 @@ export function verifyTotpCode(secret: string, code: string) {
   return offsets.some((offset) => generateTotpCode(secret, Date.now() + offset) === normalized);
 }
 
-export function buildOtpAuthUrl(params: { secret: string; email: string; issuer: string }) {
-  const label = encodeURIComponent(`${params.issuer}:${params.email}`);
-  const issuer = encodeURIComponent(params.issuer);
-  return `otpauth://totp/${label}?secret=${params.secret}&issuer=${issuer}`;
-}

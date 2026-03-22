@@ -313,16 +313,12 @@ export interface WorkspaceSnapshot {
   userDirectory?: UserDirectoryEntry[];
   currentUser: AuthenticatedUser;
   permissions: PermissionSet;
-  auditLogs?: AuditLogItem[];
   deployment?: DeploymentInfo;
   enterpriseMeta?: EnterpriseMeta;
   analytics?: AnalyticsSummary;
   externalAgenda?: AgendaEvent[];
   savedViews?: SavedView[];
-  availableWorkspaces?: WorkspaceSummary[];
   activeWorkspaceId?: string;
-  joinRequests?: WorkspaceJoinRequest[];
-  notifications?: NotificationItem[];
   serverTime: string;
 }
 
@@ -334,16 +330,12 @@ export interface BootstrapPayload {
   userDirectory?: UserDirectoryEntry[];
   currentUser?: AuthenticatedUser;
   permissions?: PermissionSet;
-  auditLogs?: AuditLogItem[];
   deployment?: DeploymentInfo;
   enterpriseMeta?: EnterpriseMeta;
   analytics?: AnalyticsSummary;
   externalAgenda?: AgendaEvent[];
   savedViews?: SavedView[];
-  availableWorkspaces?: WorkspaceSummary[];
   activeWorkspaceId?: string;
-  joinRequests?: WorkspaceJoinRequest[];
-  notifications?: NotificationItem[];
   serverTime: string;
 }
 
@@ -357,15 +349,6 @@ export interface TaskDraft {
   dueDate: string;
 }
 
-export interface NoteDraft {
-  title: string;
-  content: string;
-  tag: string;
-  color: string;
-  section: DecisionSection;
-  decisionOwnerName?: string;
-  decisionDueDate?: string;
-}
 
 export interface EventDraft {
   title: string;

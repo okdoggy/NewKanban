@@ -15,9 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  DECISION_SECTIONS,
   EVENT_TYPE_OPTIONS,
-  NOTE_COLOR_OPTIONS,
   PALETTE,
   RECURRENCE_OPTIONS,
   roleMeta,
@@ -35,12 +33,10 @@ import {
 import { relativeTime } from "@/lib/date-utils";
 import type {
   AnalyticsSummary,
-  AuditLogItem,
   AuthenticatedUser,
   AutomationRule,
   EventDraft,
   MemberRole,
-  NoteDraft,
   PermissionSet,
   SavedView,
   TaskDraft,
@@ -53,8 +49,6 @@ import type {
 import { cn } from "@/lib/utils";
 
 export interface AuthFormState {
-  name: string;
-  handle: string;
   email: string;
   password: string;
 }
@@ -485,28 +479,6 @@ export function TaskDetailDialog({
   );
 }
 
-export function NoteDialog({ open, onOpenChange, noteDraft, onChange, onSubmit, editing }: { open: boolean; onOpenChange: (value: boolean) => void; noteDraft: NoteDraft; onChange: (value: NoteDraft) => void; onSubmit: () => void; editing: boolean; }) {
-  const needsDecisionFields = noteDraft.section === "decisions" || noteDraft.section === "actions";
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-xl gap-0 overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6"><DialogTitle>{editing ? "Edit decision canvas note" : "Create a decision canvas note"}</DialogTitle><DialogDescription>Keep notes short, structured, and easy to convert into action.</DialogDescription></DialogHeader>
-        <div className="space-y-4 px-6 py-6">
-          <Field label="Title"><Input onChange={(event) => onChange({ ...noteDraft, title: event.target.value })} value={noteDraft.title} /></Field>
-          <Field label="Context"><Textarea onChange={(event) => onChange({ ...noteDraft, content: event.target.value })} rows={4} value={noteDraft.content} /></Field>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Tag"><Input onChange={(event) => onChange({ ...noteDraft, tag: event.target.value })} value={noteDraft.tag} /></Field>
-            <Field label="Section"><select className="input-shell" onChange={(event) => onChange({ ...noteDraft, section: event.target.value as NoteDraft["section"] })} value={noteDraft.section}>{DECISION_SECTIONS.map((section) => <option key={section.key} value={section.key}>{section.label}</option>)}</select></Field>
-          </div>
-          {needsDecisionFields ? <div className="grid gap-4 md:grid-cols-2"><Field label="Owner"><Input onChange={(event) => onChange({ ...noteDraft, decisionOwnerName: event.target.value })} value={noteDraft.decisionOwnerName ?? ""} /></Field><Field label="Due date"><Input onChange={(event) => onChange({ ...noteDraft, decisionDueDate: event.target.value })} type="date" value={noteDraft.decisionDueDate ?? ""} /></Field></div> : null}
-          <Field label="Card color"><div className="flex flex-wrap gap-2">{NOTE_COLOR_OPTIONS.map((color) => <button className={cn("h-10 w-10 rounded-full border-2 transition-transform hover:scale-105", noteDraft.color === color ? "border-primary" : "border-white/60")} key={color} onClick={() => onChange({ ...noteDraft, color })} style={{ backgroundColor: color }} type="button" />)}</div></Field>
-        </div>
-        <DialogFooter className="mt-0" showCloseButton><Button onClick={onSubmit}>{editing ? "Update note" : "Save note"}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function EventDialog({ open, onOpenChange, eventDraft, onChange, onSubmit, onDelete, deleting = false, editing }: { open: boolean; onOpenChange: (value: boolean) => void; eventDraft: EventDraft; onChange: (value: EventDraft) => void; onSubmit: () => void; onDelete?: () => void; deleting?: boolean; editing: boolean; }) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -629,26 +601,6 @@ export function MembersDialog({ open, onOpenChange, workspaceName, members, onRo
             </TableBody>
           </Table>
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function AuditDialog({ open, onOpenChange, auditLogs }: { open: boolean; onOpenChange: (value: boolean) => void; auditLogs: AuditLogItem[] }) {
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6"><DialogTitle>Audit log</DialogTitle><DialogDescription>Security and collaboration actions recorded by the system.</DialogDescription></DialogHeader>
-        <div className="space-y-3 px-6 py-6">
-          {auditLogs.map((log) => (
-            <div className="rounded-[18px] bg-slate-50 px-4 py-4 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)]" key={log.id}>
-              <div className="mb-1 flex items-center justify-between gap-3"><p className="text-sm font-semibold">{log.action}</p><Badge className="rounded-full bg-slate-100 text-slate-600">{log.scope}</Badge></div>
-              <p className="text-sm text-muted-foreground">{log.detail}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{log.actorName} · {relativeTime(log.createdAt)}</p>
-            </div>
-          ))}
-        </div>
-        <DialogFooter className="mt-0" showCloseButton />
       </DialogContent>
     </Dialog>
   );

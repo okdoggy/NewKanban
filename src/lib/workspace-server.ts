@@ -5,10 +5,6 @@ import { DEFAULT_WORKSPACE_ID } from "@/lib/auth";
 import {
   ensureDefaultOwner,
   getAuthContextFromToken,
-  listAuditLogs,
-  listNotifications,
-  listPendingJoinRequests,
-  listUserWorkspaces,
   listWorkspaceMembers,
 } from "@/lib/auth-server";
 import { getMongoDb } from "@/lib/mongo";
@@ -16,16 +12,13 @@ import type {
   AnalyticsSummary,
   DeploymentInfo,
   EnterpriseMeta,
-  NotificationItem,
   PresenceMember,
   TaskItem,
   UserDirectoryEntry,
   WhiteboardNote,
   WhiteboardScene,
   Workspace,
-  WorkspaceJoinRequest,
   WorkspaceSnapshot,
-  WorkspaceSummary,
 } from "@/lib/types";
 
 const WORKSPACE_ID = process.env.WORKSPACE_ID ?? DEFAULT_WORKSPACE_ID;
@@ -259,12 +252,8 @@ export async function getWorkspaceSnapshotByToken(token: string | undefined, wor
     .find({ workspaceId: auth.workspaceId }, { projection: { _id: 0, connectionIds: 0 } })
     .sort({ lastSeen: -1 })
     .toArray();
-  const members = await listWorkspaceMembers(db, auth.workspaceId);
-  const auditLogs = await listAuditLogs(db, auth);
-  const [availableWorkspaces, notifications, joinRequests, userDirectory] = await Promise.all([
-    listUserWorkspaces(db, auth.user._id),
-    listNotifications(db, auth),
-    auth.membership.role === "owner" ? listPendingJoinRequests(db, auth.workspaceId) : Promise.resolve([]),
+  const [members, userDirectory] = await Promise.all([
+    listWorkspaceMembers(db, auth.workspaceId),
     listUserDirectory(db),
   ]);
 
@@ -277,15 +266,11 @@ export async function getWorkspaceSnapshotByToken(token: string | undefined, wor
     presence,
     members,
     userDirectory,
-    auditLogs,
     deployment: buildDeploymentInfo(),
     enterpriseMeta: buildEnterpriseMeta(),
     analytics: computeAnalytics(sanitizedWorkspace),
     externalAgenda: [],
     savedViews: sanitizedWorkspace.savedViews ?? [],
-    availableWorkspaces: availableWorkspaces as WorkspaceSummary[],
-    notifications: notifications as NotificationItem[],
-    joinRequests: joinRequests as WorkspaceJoinRequest[],
     serverTime: new Date().toISOString(),
   };
 }

@@ -4,8 +4,6 @@ import {
   DEFAULT_WORKSPACE_ID,
   DEFAULT_WORKSPACE_NAME,
   SESSION_MAX_AGE_SECONDS,
-  buildOtpAuthUrl,
-  generateTotpSecret,
   getRolePermissions,
   hashSessionToken,
   issueSessionToken,
@@ -30,7 +28,6 @@ import type {
 
 const WORKSPACE_ID = DEFAULT_WORKSPACE_ID;
 const COLOR_PALETTE = ["#2b4bb9", "#4865d3", "#0ea5e9", "#14b8a6", "#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#d946ef", "#8b5cf6", "#6366f1", "#64748b", "#111827"];
-const APP_ISSUER = process.env.APP_ISSUER ?? "NewKanban";
 
 export interface UserDocument {
   _id: string;
@@ -71,36 +68,6 @@ export interface SessionDocument {
   workspaceId?: string;
   createdAt: string;
   expiresAt: string;
-}
-
-export interface VerificationTokenDocument {
-  _id: string;
-  userId: string;
-  tokenHash: string;
-  createdAt: string;
-  expiresAt: string;
-  usedAt?: string | null;
-}
-
-export interface PasswordResetTokenDocument {
-  _id: string;
-  userId: string;
-  tokenHash: string;
-  createdAt: string;
-  expiresAt: string;
-  usedAt?: string | null;
-}
-
-export interface InviteDocument {
-  _id: string;
-  email: string;
-  role: MemberRole;
-  tokenHash: string;
-  invitedByUserId: string;
-  invitedByName: string;
-  createdAt: string;
-  expiresAt: string;
-  acceptedAt?: string | null;
 }
 
 export interface MfaChallengeDocument {
@@ -255,11 +222,6 @@ export async function appendAuditLog(
     detail: entry.detail,
     createdAt: new Date().toISOString(),
   });
-}
-
-export async function listAuditLogs(db: Db, auth: AuthContext) {
-  const filter = auth.membership.role === "owner" ? {} : { $or: [{ actorUserId: auth.user._id }, { userId: auth.user._id }] };
-  return db.collection<AuditLogDocument>("audit_logs").find(filter).sort({ createdAt: -1 }).limit(50).toArray();
 }
 
 export async function ensureDefaultOwner(db: Db) {
@@ -673,150 +635,6 @@ export async function sendDirectTechMessage(db: Db, auth: AuthContext, input: { 
   });
 }
 
-export async function createVerificationToken(db: Db, user: UserDocument) {
-  const { rawToken, tokenHash } = issueTimedToken();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
-  await db.collection<VerificationTokenDocument>("verification_tokens").insertOne({
-    _id: crypto.randomUUID(),
-    userId: user._id,
-    tokenHash,
-    createdAt: new Date().toISOString(),
-    expiresAt,
-    usedAt: null,
-  });
-  return rawToken;
-}
-
-export async function verifyEmailByToken(db: Db, rawToken: string) {
-  await collectionDeleteExpired(db, "verification_tokens");
-  const tokenHash = hashSessionToken(rawToken);
-  const token = await db.collection<VerificationTokenDocument>("verification_tokens").findOne({ tokenHash, usedAt: null });
-  if (!token) {
-    throw new Error("Verification link is invalid or expired.");
-  }
-
-  await db.collection<UserDocument>("users").updateOne({ _id: token.userId }, { $set: { emailVerified: true } });
-  await db.collection<VerificationTokenDocument>("verification_tokens").updateOne({ _id: token._id }, { $set: { usedAt: new Date().toISOString() } });
-  const user = await db.collection<UserDocument>("users").findOne({ _id: token.userId });
-  if (user) {
-    await appendAuditLog(db, {
-      actorName: user.name,
-      actorEmail: user.email,
-      actorUserId: user._id,
-      userId: user._id,
-      scope: "auth",
-      action: "verify-email",
-      detail: `${user.email} verified their email address.`,
-    });
-  }
-}
-
-export async function createInvite(db: Db, actor: AuthContext, input: { email: string; role: MemberRole }) {
-  const { rawToken, tokenHash } = issueTimedToken();
-  const email = normalizeEmail(input.email);
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
-  await db.collection<InviteDocument>("invites").insertOne({
-    _id: crypto.randomUUID(),
-    email,
-    role: input.role,
-    tokenHash,
-    invitedByUserId: actor.user._id,
-    invitedByName: actor.user.name,
-    createdAt: new Date().toISOString(),
-    expiresAt,
-    acceptedAt: null,
-  });
-
-  await appendAuditLog(db, {
-    actorName: actor.user.name,
-    actorEmail: actor.user.email,
-    actorUserId: actor.user._id,
-    scope: "security",
-    action: "invite",
-    detail: `${actor.user.email} invited ${email} as ${input.role}.`,
-  });
-
-  return `/?inviteToken=${rawToken}`;
-}
-
-export async function acceptInvite(db: Db, input: { token: string; name: string; handle: string; password: string }) {
-  await collectionDeleteExpired(db, "invites");
-  const tokenHash = hashSessionToken(input.token);
-  const invite = await db.collection<InviteDocument>("invites").findOne({ tokenHash, acceptedAt: null });
-  if (!invite) {
-    throw new Error("Invite link is invalid or expired.");
-  }
-
-  const user = await registerUser(db, {
-    email: invite.email,
-    password: input.password,
-    name: input.name,
-    handle: input.handle,
-    role: invite.role,
-    emailVerified: true,
-  });
-
-  await db.collection<InviteDocument>("invites").updateOne({ _id: invite._id }, { $set: { acceptedAt: new Date().toISOString() } });
-  await appendAuditLog(db, {
-    actorName: user.name,
-    actorEmail: user.email,
-    actorUserId: user._id,
-    userId: user._id,
-    scope: "auth",
-    action: "accept-invite",
-    detail: `${user.email} accepted an invite as ${invite.role}.`,
-  });
-  return user;
-}
-
-export async function createPasswordResetToken(db: Db, emailInput: string) {
-  const users = db.collection<UserDocument>("users");
-  const email = normalizeEmail(emailInput);
-  const user = await users.findOne({ email });
-  if (!user) return null;
-
-  const { rawToken, tokenHash } = issueTimedToken();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 30).toISOString();
-  await db.collection<PasswordResetTokenDocument>("password_reset_tokens").insertOne({
-    _id: crypto.randomUUID(),
-    userId: user._id,
-    tokenHash,
-    createdAt: new Date().toISOString(),
-    expiresAt,
-    usedAt: null,
-  });
-  return rawToken;
-}
-
-export async function resetPasswordByToken(db: Db, rawToken: string, password: string) {
-  await collectionDeleteExpired(db, "password_reset_tokens");
-  const tokenHash = hashSessionToken(rawToken);
-  const token = await db.collection<PasswordResetTokenDocument>("password_reset_tokens").findOne({ tokenHash, usedAt: null });
-  if (!token) throw new Error("Password reset link is invalid or expired.");
-
-  await db.collection<UserDocument>("users").updateOne(
-    { _id: token.userId },
-    { $set: { passwordHash: makePasswordHash(password) } },
-  );
-  await db.collection<PasswordResetTokenDocument>("password_reset_tokens").updateOne(
-    { _id: token._id },
-    { $set: { usedAt: new Date().toISOString() } },
-  );
-
-  const user = await db.collection<UserDocument>("users").findOne({ _id: token.userId });
-  if (user) {
-    await appendAuditLog(db, {
-      actorName: user.name,
-      actorEmail: user.email,
-      actorUserId: user._id,
-      userId: user._id,
-      scope: "security",
-      action: "reset-password",
-      detail: `${user.email} reset their password.`,
-    });
-  }
-}
-
 export async function resetPasswordByIdentifier(db: Db, identifierInput: string, password = "0000") {
   const user = await findUserByIdentifier(db, identifierInput);
   if (!user) throw new Error("Knox ID not found.");
@@ -834,58 +652,6 @@ export async function resetPasswordByIdentifier(db: Db, identifierInput: string,
     scope: "security",
     action: "reset-password",
     detail: `${user.email} password was reset to the default value.`,
-  });
-}
-
-export async function createMfaSetup(db: Db, auth: AuthContext) {
-  const secret = generateTotpSecret();
-  await db.collection<UserDocument>("users").updateOne(
-    { _id: auth.user._id },
-    { $set: { pendingMfaSecret: secret } },
-  );
-  return {
-    secret,
-    otpAuthUrl: buildOtpAuthUrl({ secret, email: auth.user.email, issuer: APP_ISSUER }),
-  };
-}
-
-export async function enableMfa(db: Db, auth: AuthContext, code: string) {
-  const user = await db.collection<UserDocument>("users").findOne({ _id: auth.user._id });
-  if (!user?.pendingMfaSecret) throw new Error("MFA setup was not started.");
-  if (!verifyTotpCode(user.pendingMfaSecret, code)) throw new Error("Invalid MFA code.");
-
-  await db.collection<UserDocument>("users").updateOne(
-    { _id: user._id },
-    { $set: { mfaSecret: user.pendingMfaSecret, mfaEnabled: true }, $unset: { pendingMfaSecret: "" } },
-  );
-  await appendAuditLog(db, {
-    actorName: user.name,
-    actorEmail: user.email,
-    actorUserId: user._id,
-    userId: user._id,
-    scope: "security",
-    action: "enable-mfa",
-    detail: `${user.email} enabled MFA.`,
-  });
-}
-
-export async function disableMfa(db: Db, auth: AuthContext, code: string) {
-  const user = await db.collection<UserDocument>("users").findOne({ _id: auth.user._id });
-  if (!user?.mfaSecret || !user.mfaEnabled) throw new Error("MFA is not enabled.");
-  if (!verifyTotpCode(user.mfaSecret, code)) throw new Error("Invalid MFA code.");
-
-  await db.collection<UserDocument>("users").updateOne(
-    { _id: user._id },
-    { $set: { mfaEnabled: false }, $unset: { mfaSecret: "", pendingMfaSecret: "" } },
-  );
-  await appendAuditLog(db, {
-    actorName: user.name,
-    actorEmail: user.email,
-    actorUserId: user._id,
-    userId: user._id,
-    scope: "security",
-    action: "disable-mfa",
-    detail: `${user.email} disabled MFA.`,
   });
 }
 

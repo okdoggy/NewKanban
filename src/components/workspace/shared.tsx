@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Paperclip, CheckCircle2, ShieldCheck, ArrowUpRight, LucideIcon, Trash2 } from "lucide-react";
+import { Paperclip, ArrowUpRight, LucideIcon, Trash2 } from "lucide-react";
 import { formatDate, parseDate } from "@/lib/date-utils";
 import type { TaskAttachment, TaskComment } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -38,42 +37,6 @@ export function EmptyStateCard({ title, description, action }: { title: string; 
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
-  );
-}
-
-export function FeatureCard({ icon: Icon, title, description }: { icon: typeof ShieldCheck; title: string; description: string }) {
-  return (
-    <div className="rounded-[24px] bg-white/80 p-5 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]">
-      <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-[16px] bg-primary/10 text-primary">
-        <Icon className="size-5" />
-      </div>
-      <h3 className="font-heading text-xl font-bold tracking-tight">{title}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-    </div>
-  );
-}
-
-export function MetricCard({ icon: Icon, label, value, tone }: { icon: typeof CheckCircle2; label: string; value: string; tone: "success" | "neutral" | "primary" | "secondary"; }) {
-  const iconTone = {
-    success: "bg-emerald-100 text-emerald-700",
-    neutral: "bg-slate-100 text-slate-700",
-    primary: "bg-blue-100 text-blue-700",
-    secondary: "bg-violet-100 text-violet-700",
-  }[tone];
-  return (
-    <Card className="glass-surface border-0 shadow-[0_16px_36px_rgba(43,75,185,0.05)]">
-      <CardContent className="space-y-4 p-5">
-        <div className="flex items-center justify-between">
-          <span className={cn("inline-flex h-11 w-11 items-center justify-center rounded-[18px]", iconTone)}>
-            <Icon className="size-5" />
-          </span>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="mt-2 font-heading text-4xl font-extrabold tracking-tight">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

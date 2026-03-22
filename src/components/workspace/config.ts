@@ -1,10 +1,8 @@
 import type {
   CalendarViewMode,
-  DecisionSection,
   EventDraft,
   GanttZoom,
   MemberRole,
-  NoteDraft,
   TaskDraft,
   TaskPriority,
   TaskStatus,
@@ -50,7 +48,6 @@ export const roleMeta: Record<MemberRole, string> = {
   viewer: "bg-slate-100 text-slate-600",
 };
 
-export const NOTE_COLOR_OPTIONS = ["#ffffff", "#4865d3", "#fff0a8", "#dfe7ff", "#c8facc", "#ffe0b6"];
 export const EVENT_TYPE_OPTIONS = ["Team", "Group", "Part", "TG", "Project1", "Project2", "Project3", "Personal", "Etc"] as const;
 export const EVENT_TYPE_META: Record<string, string> = {
   Team: "bg-blue-100 text-blue-700",
@@ -71,14 +68,6 @@ export const EVENT_TYPE_META: Record<string, string> = {
   focus: "bg-fuchsia-100 text-fuchsia-700",
   external: "bg-slate-100 text-slate-600",
 };
-
-export const DECISION_SECTIONS: Array<{ key: DecisionSection; label: string; hint: string }> = [
-  { key: "ideas", label: "Ideas", hint: "Raw options and opportunities" },
-  { key: "questions", label: "Questions", hint: "Open unknowns to resolve" },
-  { key: "risks", label: "Risks", hint: "Dependencies, blockers, or concerns" },
-  { key: "decisions", label: "Decisions", hint: "Agreed direction and owners" },
-  { key: "actions", label: "Actions", hint: "Follow-up work ready to execute" },
-];
 
 export const CALENDAR_VIEW_OPTIONS: CalendarViewMode[] = ["month", "week", "day"];
 export const GANTT_ZOOM_OPTIONS: Array<{ key: GanttZoom; label: string; cellWidth: number }> = [
@@ -115,16 +104,6 @@ export function createTaskDraft(): TaskDraft {
     label: "Product",
     startDate: new Date().toISOString().slice(0, 10),
     dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  };
-}
-
-export function createNoteDraft(): NoteDraft {
-  return {
-    title: "",
-    content: "",
-    tag: "Idea",
-    color: "#ffffff",
-    section: "ideas" as DecisionSection,
   };
 }
 

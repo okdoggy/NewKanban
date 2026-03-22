@@ -2,11 +2,9 @@
 
 import {
   Activity,
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   CalendarDays,
-  Clock3,
   Columns3,
   GripVertical,
   Inbox,
@@ -34,7 +32,7 @@ import {
   WIP_LIMITS,
 } from "@/components/workspace/config";
 import { WhiteboardCanvas } from "@/components/workspace/whiteboard-canvas";
-import { ActionCard, EmptyStateCard, MetricCard } from "@/components/workspace/shared";
+import { ActionCard, EmptyStateCard } from "@/components/workspace/shared";
 import {
   addDays,
   addMinutes,
@@ -54,7 +52,6 @@ import {
 } from "@/lib/date-utils";
 import type {
   AgendaEvent,
-  AnalyticsSummary,
   CalendarViewMode,
   GanttZoom,
   TaskItem,
@@ -62,7 +59,6 @@ import type {
   TaskStatus,
   WhiteboardNote,
   WhiteboardScene,
-  Workspace,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatWorkspaceName } from "@/lib/workspace-naming";
@@ -294,62 +290,6 @@ export function HomeView({
         <NoteList compact description="Recent decisions and follow-ups captured for the team." emptyDescription="Structured decisions will appear here once notes are captured." emptyTitle="No recent decisions" hideDescription items={recentDecisionNotes} onOpenCollaborate={onOpenCollaborate} title="Recent decisions" />
         <EventList compact description="Linked events and shared commitments coming up next." emptyDescription="Upcoming events will appear here once the calendar is in use." emptyTitle="No upcoming schedule" hideDescription items={upcomingEvents} onOpenCalendar={onOpenCalendar} title="Upcoming schedule" />
       </section>
-    </div>
-  );
-}
-
-export function OverviewView({
-  analytics,
-  todayTasks,
-  dueSoonTasks,
-  atRiskTasks,
-  reviewTasks,
-  activity,
-  onOpenTask,
-  onOpenActivity,
-}: {
-  analytics: AnalyticsSummary | null;
-  todayTasks: TaskItem[];
-  dueSoonTasks: TaskItem[];
-  atRiskTasks: TaskItem[];
-  reviewTasks: TaskItem[];
-  activity: Workspace["activity"];
-  onOpenTask: (task: TaskItem) => void;
-  onOpenActivity: (activity: Workspace["activity"][number]) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Activity} label="Completion rate" tone="success" value={`${analytics?.completionRate ?? 0}%`} />
-        <MetricCard icon={Clock3} label="Due soon" tone="primary" value={String(analytics?.dueSoonTasks ?? 0)} />
-        <MetricCard icon={AlertTriangle} label="Blocked" tone="secondary" value={String(analytics?.blockedTasks ?? 0)} />
-        <MetricCard icon={CalendarDays} label="Events today" tone="neutral" value={String(analytics?.eventsToday ?? 0)} />
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-2">
-        <ActionList accent="bg-blue-100 text-blue-700" description="Tasks due today or already on your plate." emptyDescription="Assigned work and same-day deadlines will surface here." emptyTitle="Nothing urgent today" items={todayTasks} onOpenTask={onOpenTask} title="Today" />
-        <ActionList accent="bg-violet-100 text-violet-700" description="Deadlines coming up in the next 72 hours." emptyDescription="Upcoming deadlines will appear here as the sprint fills out." emptyTitle="Nothing due soon" items={dueSoonTasks} onOpenTask={onOpenTask} title="Due soon" />
-        <ActionList accent="bg-rose-100 text-rose-700" description="Blocked or overdue work that needs intervention." emptyDescription="When work becomes blocked or overdue, it will be elevated here." emptyTitle="No work at risk" items={atRiskTasks} onOpenTask={onOpenTask} title="At risk" />
-        <ActionList accent="bg-amber-100 text-amber-700" description="Work waiting for feedback, approval, or verification." emptyDescription="Tasks in review will show up here for quick follow-up." emptyTitle="No review queue" items={reviewTasks} onOpenTask={onOpenTask} title="Needs attention" />
-      </section>
-
-      <Card className="glass-surface border-0">
-        <CardContent className="space-y-2 p-4">
-          {activity.length > 0 ? activity.slice(0, 6).map((item) => (
-            <button className="flex w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left transition hover:bg-white/80" key={item.id} onClick={() => onOpenActivity(item)} type="button">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: item.actorColor }}>
-                {item.actorName.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm leading-6">
-                  <span className="font-semibold">{item.actorName}</span> {item.action} <span className="font-semibold text-primary">{item.entityTitle}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">{formatDate(parseDate(item.createdAt), { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
-              </div>
-            </button>
-          )) : <EmptyStateCard description="Auth, edits, comments, and automation activity will appear here as the workspace becomes active." title="No recent activity" />}
-        </CardContent>
-      </Card>
     </div>
   );
 }
