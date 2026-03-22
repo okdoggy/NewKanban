@@ -62,6 +62,7 @@ import type {
   Workspace,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatWorkspaceName, matchesWorkspaceQuery } from "@/lib/workspace-naming";
 
 const ganttHeaderHeight = 52;
 const ganttSidebarWidth = 280;
@@ -162,12 +163,17 @@ function ActionList({ title, description, items, emptyTitle, emptyDescription, o
 interface WorkspaceHubItem {
   id: string;
   name: string;
-  workspaceKey?: string;
   role: "owner" | "editor" | "viewer";
   memberCount?: number;
   pendingRequestCount?: number;
-  joinRequested?: boolean;
   isActive?: boolean;
+}
+
+interface WorkspaceDiscoverableItem {
+  id: string;
+  name: string;
+  memberCount?: number;
+  joinRequested?: boolean;
 }
 
 interface WorkspaceRequestItem {
@@ -176,7 +182,7 @@ interface WorkspaceRequestItem {
   workspaceName: string;
   requesterName: string;
   requesterEmail?: string;
-  requestedAt: string;
+  requestedAt?: string;
 }
 
 export type InboxFilter = "all" | "assigned" | "mentions" | "requests" | "system";
@@ -351,36 +357,48 @@ export function OverviewView({
   );
 }
 
-export function WorkspaceHubView({ workspaces, requests, createName, joinValue, busy, onCreateNameChange, onJoinValueChange, onCreateWorkspace, onJoinWorkspace, onSwitchWorkspace, onDeleteWorkspace, onRespondRequest }: { workspaces: WorkspaceHubItem[]; requests: WorkspaceRequestItem[]; createName: string; joinValue: string; busy: boolean; onCreateNameChange: (value: string) => void; onJoinValueChange: (value: string) => void; onCreateWorkspace: () => void; onJoinWorkspace: () => void; onSwitchWorkspace: (workspaceId: string) => void; onDeleteWorkspace: (workspaceId: string) => void; onRespondRequest: (requestId: string, decision: "approve" | "reject") => void; }) {
-  return (
-    <div className="space-y-6">
-      <Card className="glass-surface border-0">
-        <CardHeader>
-          <CardTitle className="font-heading text-4xl">Workspaces</CardTitle>
-          <CardDescription>Create, join, switch, and administer workspace membership from one place.</CardDescription>
-        </CardHeader>
-      </Card>
+export function WorkspaceHubView({ workspaces, discoverableWorkspaces, requests, createName, joinValue, selectedJoinWorkspaceId, busy, onCreateNameChange, onJoinValueChange, onCreateWorkspace, onJoinWorkspace, onSelectJoinWorkspace, onSwitchWorkspace, onManageWorkspace, onDeleteWorkspace, onRespondRequest }: { workspaces: WorkspaceHubItem[]; discoverableWorkspaces: WorkspaceDiscoverableItem[]; requests: WorkspaceRequestItem[]; createName: string; joinValue: string; selectedJoinWorkspaceId: string | null; busy: boolean; onCreateNameChange: (value: string) => void; onJoinValueChange: (value: string) => void; onCreateWorkspace: () => void; onJoinWorkspace: () => void; onSelectJoinWorkspace: (workspaceId: string, workspaceName: string) => void; onSwitchWorkspace: (workspaceId: string) => void; onManageWorkspace: (workspaceId: string) => void; onDeleteWorkspace: (workspaceId: string) => void; onRespondRequest: (requestId: string, decision: "approve" | "reject") => void; }) {
+  const joinSuggestions = useMemo(
+    () => discoverableWorkspaces
+      .filter((workspace) => matchesWorkspaceQuery(workspace, joinValue))
+      .sort((left, right) => Number(left.joinRequested) - Number(right.joinRequested) || formatWorkspaceName(left.name).localeCompare(formatWorkspaceName(right.name)))
+      .slice(0, 6),
+    [discoverableWorkspaces, joinValue],
+  );
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+  const selectedJoinWorkspace = selectedJoinWorkspaceId
+    ? discoverableWorkspaces.find((workspace) => workspace.id === selectedJoinWorkspaceId) ?? null
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="px-1">
+        <h1 className="font-heading text-3xl tracking-tight">Workspaces</h1>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-xl">My workspaces</CardTitle>
-              <CardDescription>All data surfaces—Kanban, Gantt, Calendar, Whiteboard—follow the active workspace.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {workspaces.length > 0 ? workspaces.map((workspace) => (
-                <div className="flex items-center justify-between gap-3 rounded-[18px] bg-slate-50 px-4 py-4 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" key={workspace.id}>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-semibold">{workspace.name}</p>
+                <div className="flex items-center justify-between gap-3 rounded-[18px] bg-slate-50 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" key={workspace.id}>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate font-semibold">{formatWorkspaceName(workspace.name)}</p>
                       <Badge className={cn("rounded-full border-0", workspace.role === "owner" ? "bg-emerald-100 text-emerald-700" : workspace.role === "editor" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600")}>{workspace.role}</Badge>
                       {workspace.isActive ? <Badge className="rounded-full bg-primary/10 text-primary">active</Badge> : null}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{workspace.workspaceKey ?? workspace.id} · {workspace.memberCount ?? 0} members · {workspace.pendingRequestCount ?? 0} pending requests</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {workspace.memberCount ?? 0} member{workspace.memberCount === 1 ? "" : "s"}
+                      {workspace.pendingRequestCount ? ` · ${workspace.pendingRequestCount} request${workspace.pendingRequestCount === 1 ? "" : "s"}` : ""}
+                    </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    {!workspace.isActive ? <Button onClick={() => onSwitchWorkspace(workspace.id)} size="sm" variant="outline">Open</Button> : null}
+                    <Button onClick={() => onSwitchWorkspace(workspace.id)} size="sm" variant="outline">Open</Button>
+                    {workspace.role === "owner" ? <Button onClick={() => onManageWorkspace(workspace.id)} size="sm" variant="outline">Manage</Button> : null}
                     {workspace.role === "owner" ? <Button onClick={() => onDeleteWorkspace(workspace.id)} size="sm" variant="ghost">Delete</Button> : null}
                   </div>
                 </div>
@@ -388,52 +406,63 @@ export function WorkspaceHubView({ workspaces, requests, createName, joinValue, 
             </CardContent>
           </Card>
 
-          <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl">Pending join requests</CardTitle>
-              <CardDescription>Owners can approve or reject access requests here without leaving the shell.</CardDescription>
+          {requests.length > 0 ? <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl">Pending requests</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {requests.length > 0 ? requests.map((request) => (
-                <div className="flex items-start justify-between gap-3 rounded-[18px] bg-slate-50 px-4 py-4 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" key={request.id}>
-                  <div>
-                    <p className="font-medium">{request.requesterName}</p>
-                    <p className="text-sm text-muted-foreground">{request.requesterEmail ?? "No email"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Requested access to {request.workspaceName} · {formatDate(parseDate(request.requestedAt), { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                <div className="flex items-center justify-between gap-3 rounded-[18px] bg-slate-50 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" key={request.id}>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{request.requesterName} · {request.requesterEmail ?? "No email"} · {formatWorkspaceName(request.workspaceName)}{request.requestedAt ? ` · ${formatDate(parseDate(request.requestedAt), { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={() => onRespondRequest(request.id, "approve")} size="sm">Approve</Button>
                     <Button onClick={() => onRespondRequest(request.id, "reject")} size="sm" variant="outline">Reject</Button>
                   </div>
                 </div>
-              )) : <EmptyStateCard description="Owner approval requests will collect here." title="No pending requests" />}
+              )) : null}
             </CardContent>
-          </Card>
+          </Card> : null}
         </div>
 
-        <div className="space-y-4">
-          <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl">Create workspace</CardTitle>
-              <CardDescription>Anyone can create a workspace. The creator becomes the owner.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <input className="input-shell" disabled={busy} onChange={(event) => onCreateNameChange(event.target.value)} value={createName} />
-              <Button className="w-full" disabled={busy || !createName.trim()} onClick={onCreateWorkspace}>Create workspace</Button>
-            </CardContent>
-          </Card>
+        <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Manage</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Create</p>
+              <div className="flex gap-2">
+                <input className="input-shell flex-1" disabled={busy} onChange={(event) => onCreateNameChange(event.target.value)} placeholder="Workspace name" value={createName} />
+                <Button disabled={busy || !createName.trim()} onClick={onCreateWorkspace}>Create</Button>
+              </div>
+            </div>
 
-          <Card className="border-0 bg-white/85 shadow-[0_18px_44px_rgba(43,75,185,0.06)]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl">Join workspace</CardTitle>
-              <CardDescription>Submit a join request using a workspace key. The owner must approve before access is granted.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <input className="input-shell" disabled={busy} onChange={(event) => onJoinValueChange(event.target.value)} placeholder="Workspace key" value={joinValue} />
-              <Button className="w-full" disabled={busy || !joinValue.trim()} onClick={onJoinWorkspace} variant="outline">Request access</Button>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Join</p>
+              <input className="input-shell" disabled={busy} onChange={(event) => onJoinValueChange(event.target.value)} placeholder="Search workspace name" value={joinValue} />
+              {joinValue.trim() ? (
+                <div className="space-y-2">
+                  {joinSuggestions.length > 0 ? joinSuggestions.map((workspace) => (
+                    <button
+                      className={cn("flex w-full items-center justify-between rounded-[16px] bg-slate-50 px-3 py-2 text-left shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)] transition", selectedJoinWorkspaceId === workspace.id ? "bg-[#dfe7ff]" : "hover:bg-slate-100")}
+                      key={workspace.id}
+                      onClick={() => onSelectJoinWorkspace(workspace.id, formatWorkspaceName(workspace.name))}
+                      type="button"
+                    >
+                      <span className="min-w-0 truncate text-sm font-medium">{formatWorkspaceName(workspace.name)} · {workspace.memberCount ?? 0} member{workspace.memberCount === 1 ? "" : "s"}</span>
+                      {workspace.joinRequested ? <Badge className="rounded-full bg-slate-100 text-slate-600">Requested</Badge> : null}
+                    </button>
+                  )) : <div className="rounded-[16px] border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-muted-foreground">No matching workspaces.</div>}
+                </div>
+              ) : null}
+              <Button className="w-full" disabled={busy || !selectedJoinWorkspace || Boolean(selectedJoinWorkspace?.joinRequested)} onClick={onJoinWorkspace} variant="outline">
+                {selectedJoinWorkspace?.joinRequested ? "Requested" : "Request access"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 
 import type { MemberRole, PermissionSet } from "@/lib/types";
+import { normalizeWorkspaceNameInput } from "@/lib/workspace-naming";
 
 export const SESSION_COOKIE_NAME = "nk_session";
 export const ACTIVE_WORKSPACE_COOKIE_NAME = "nk_workspace";
@@ -9,7 +10,7 @@ export const DEFAULT_OWNER_EMAIL = process.env.DEMO_OWNER_EMAIL ?? "owner@newkan
 export const DEFAULT_OWNER_PASSWORD = process.env.DEMO_OWNER_PASSWORD ?? "Admin123!";
 export const DEFAULT_OWNER_NAME = process.env.DEMO_OWNER_NAME ?? "Workspace Owner";
 export const DEFAULT_WORKSPACE_ID = process.env.WORKSPACE_ID ?? "visualai-guest";
-export const DEFAULT_WORKSPACE_NAME = "VisualAI-Guest";
+export const DEFAULT_WORKSPACE_NAME = "VisualAI";
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 export function normalizeEmail(value: string) {
@@ -28,11 +29,7 @@ export function normalizeHandle(value: string) {
 }
 
 export function normalizeWorkspaceName(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return `${DEFAULT_WORKSPACE_NAME}-${randomUUID().slice(0, 4)}`;
-  }
-  return trimmed.startsWith(DEFAULT_WORKSPACE_NAME) ? trimmed : `${DEFAULT_WORKSPACE_NAME}-${trimmed}`;
+  return normalizeWorkspaceNameInput(value, `${DEFAULT_WORKSPACE_NAME} ${randomUUID().slice(0, 4)}`);
 }
 
 export function slugifyWorkspace(value: string) {

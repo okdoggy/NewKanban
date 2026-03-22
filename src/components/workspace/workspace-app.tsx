@@ -12,7 +12,6 @@ import {
   Search,
   ShieldAlert,
   Sparkles,
-  Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -28,7 +27,6 @@ import {
 } from "@/components/workspace/config";
 import { EmptyStateCard, getInitials } from "@/components/workspace/shared";
 import {
-  AuditDialog,
   AuthScreen,
   AutomationDialog,
   EventDialog,
@@ -67,7 +65,6 @@ import {
 import type {
   AgendaEvent,
   AnalyticsSummary,
-  AuditLogItem,
   EventDraft,
   MemberRole,
   SavedView,
@@ -76,8 +73,10 @@ import type {
   TaskStatus,
   WhiteboardNote,
   WhiteboardScene,
+  WorkspaceMember,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatWorkspaceName } from "@/lib/workspace-naming";
 
 async function readJsonSafe(response: Response) {
   try {
@@ -90,12 +89,17 @@ async function readJsonSafe(response: Response) {
 interface WorkspaceCatalogItem {
   id: string;
   name: string;
-  workspaceKey?: string;
   role: MemberRole;
   memberCount?: number;
   pendingRequestCount?: number;
-  joinRequested?: boolean;
   isActive?: boolean;
+}
+
+interface WorkspaceDirectoryItem {
+  id: string;
+  name: string;
+  memberCount?: number;
+  joinRequested?: boolean;
 }
 
 interface WorkspaceJoinRequestItem {
@@ -104,7 +108,7 @@ interface WorkspaceJoinRequestItem {
   workspaceName: string;
   requesterName: string;
   requesterEmail?: string;
-  requestedAt: string;
+  requestedAt?: string;
 }
 
 interface WorkspaceNotificationItem {
@@ -191,9 +195,7 @@ export function WorkspaceApp() {
     authForm,
     setAuthForm,
     authError,
-    setAuthError,
     authInfo,
-    setAuthInfo,
     authBusy,
     inviteToken,
     resetToken,
@@ -217,7 +219,6 @@ export function WorkspaceApp() {
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
-  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [savedViewsOpen, setSavedViewsOpen] = useState(false);
   const [automationOpen, setAutomationOpen] = useState(false);
@@ -229,13 +230,7 @@ export function WorkspaceApp() {
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(createTaskDraft());
   const [eventDraft, setEventDraft] = useState<EventDraft>(createEventDraft(new Date()));
   const [whiteboardScene, setWhiteboardScene] = useState<WhiteboardScene>({ elements: [], appState: {}, files: {}, version: 0, updatedAt: new Date().toISOString() });
-  const [profileDraft, setProfileDraft] = useState({ name: "", handle: "", color: "#2b4bb9" });
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("viewer");
-  const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null);
-  const [mfaSetup, setMfaSetup] = useState<{ secret: string; otpAuthUrl: string } | null>(null);
-  const [mfaManageCode, setMfaManageCode] = useState("");
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [profileDraft, setProfileDraft] = useState({ name: "", color: "#2b4bb9" });
   const [uploadBusy, setUploadBusy] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
@@ -244,12 +239,17 @@ export function WorkspaceApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspaceHubOpen, setWorkspaceHubOpen] = useState(false);
   const [workspaceCatalog, setWorkspaceCatalog] = useState<WorkspaceCatalogItem[]>([]);
+  const [workspaceDirectory, setWorkspaceDirectory] = useState<WorkspaceDirectoryItem[]>([]);
   const [workspaceJoinRequests, setWorkspaceJoinRequests] = useState<WorkspaceJoinRequestItem[]>([]);
+  const [managedWorkspace, setManagedWorkspace] = useState<WorkspaceCatalogItem | null>(null);
+  const [managedWorkspaceMembers, setManagedWorkspaceMembers] = useState<WorkspaceMember[]>([]);
+  const [updatingWorkspaceMemberId, setUpdatingWorkspaceMemberId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<WorkspaceNotificationItem[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [workspaceCreateName, setWorkspaceCreateName] = useState(`VisualAI-Guest-${Math.random().toString(36).slice(2, 6)}`);
+  const [workspaceCreateName, setWorkspaceCreateName] = useState("");
   const [workspaceJoinValue, setWorkspaceJoinValue] = useState("");
+  const [selectedJoinWorkspaceId, setSelectedJoinWorkspaceId] = useState<string | null>(null);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [ganttGranularity, setGanttGranularity] = useState<"day" | "week" | "month">("week");
   const [ganttRangeDays, setGanttRangeDays] = useState(120);
@@ -268,7 +268,7 @@ export function WorkspaceApp() {
     onMembersList: (members) => setSnapshot((current) => (current ? { ...current, members } : current)),
     onAuthUser: (currentUser) => {
       setSnapshot((current) => (current ? { ...current, currentUser } : current));
-      setProfileDraft({ name: currentUser.name, handle: currentUser.handle, color: currentUser.color });
+      setProfileDraft({ name: currentUser.name, color: currentUser.color });
     },
   });
 
@@ -296,7 +296,7 @@ export function WorkspaceApp() {
 
   useEffect(() => {
     if (!currentUser) return;
-    setProfileDraft({ name: currentUser.name, handle: currentUser.handle, color: currentUser.color });
+    setProfileDraft({ name: currentUser.name, color: currentUser.color });
   }, [currentUser]);
 
   const loadWorkspaceShellData = useCallback(async () => {
@@ -314,25 +314,25 @@ export function WorkspaceApp() {
             {
               id: workspace.id,
               name: workspace.name,
-              workspaceKey: workspace.workspaceKey,
               role: currentUser?.role ?? "viewer",
               memberCount: members.length,
               isActive: true,
             },
           ],
         );
+        setWorkspaceDirectory((payload?.discoverableWorkspaces as WorkspaceDirectoryItem[] | undefined) ?? []);
         setWorkspaceJoinRequests((payload?.requests as WorkspaceJoinRequestItem[] | undefined) ?? []);
       } else {
         setWorkspaceCatalog([
           {
             id: workspace.id,
             name: workspace.name,
-            workspaceKey: workspace.workspaceKey,
             role: currentUser?.role ?? "viewer",
             memberCount: members.length,
             isActive: true,
           },
         ]);
+        setWorkspaceDirectory([]);
         setWorkspaceJoinRequests([]);
       }
 
@@ -347,12 +347,12 @@ export function WorkspaceApp() {
         {
           id: workspace.id,
           name: workspace.name,
-          workspaceKey: workspace.workspaceKey,
           role: currentUser?.role ?? "viewer",
           memberCount: members.length,
           isActive: true,
         },
       ]);
+      setWorkspaceDirectory([]);
       setWorkspaceJoinRequests([]);
       setNotifications([]);
     }
@@ -583,60 +583,6 @@ export function WorkspaceApp() {
     disconnect();
     await logoutSession();
   }, [disconnect, logoutSession]);
-
-  const beginMfaSetup = useCallback(async () => {
-    const response = await fetch("/api/auth/mfa/setup", { method: "POST" });
-    const payload = await readJsonSafe(response);
-    if (!response.ok) {
-      setAuthError(payload?.message ?? "Unable to start MFA setup.");
-      return;
-    }
-    setMfaSetup({ secret: payload.secret, otpAuthUrl: payload.otpAuthUrl });
-  }, [setAuthError]);
-
-  const enableMfaForCurrentUser = useCallback(async () => {
-    const response = await fetch("/api/auth/mfa/enable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: mfaManageCode }) });
-    const payload = await readJsonSafe(response);
-    if (!response.ok) {
-      setAuthError(payload?.message ?? "Unable to enable MFA.");
-      return;
-    }
-    setAuthInfo("MFA enabled.");
-    setMfaSetup(null);
-    setMfaManageCode("");
-    await loadBootstrap();
-  }, [loadBootstrap, mfaManageCode, setAuthError, setAuthInfo]);
-
-  const disableMfaForCurrentUser = useCallback(async () => {
-    const response = await fetch("/api/auth/mfa/disable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: mfaManageCode }) });
-    const payload = await readJsonSafe(response);
-    if (!response.ok) {
-      setAuthError(payload?.message ?? "Unable to disable MFA.");
-      return;
-    }
-    setAuthInfo("MFA disabled.");
-    setMfaManageCode("");
-    await loadBootstrap();
-  }, [loadBootstrap, mfaManageCode, setAuthError, setAuthInfo]);
-
-  const createInviteLink = useCallback(async () => {
-    const response = await fetch("/api/invites/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: inviteEmail, role: inviteRole }) });
-    const payload = await readJsonSafe(response);
-    if (!response.ok) {
-      setAuthError(payload?.message ?? "Unable to create invite.");
-      return;
-    }
-    setGeneratedInviteLink(payload?.inviteLink ?? null);
-    setInviteEmail("");
-    await loadBootstrap();
-  }, [inviteEmail, inviteRole, loadBootstrap, setAuthError]);
-
-  const openAuditLog = useCallback(async () => {
-    const response = await fetch("/api/audit", { cache: "no-store" });
-    const payload = await readJsonSafe(response);
-    setAuditLogs(payload?.auditLogs ?? []);
-    setAuditDialogOpen(true);
-  }, []);
 
   const saveProfile = useCallback(async () => {
     try {
@@ -941,36 +887,37 @@ export function WorkspaceApp() {
       });
       const payload = await readJsonSafe(response);
       if (!response.ok) throw new Error(payload?.message ?? "Unable to create workspace.");
-      setWorkspaceCreateName(`VisualAI-Guest-${Math.random().toString(36).slice(2, 6)}`);
+      setWorkspaceCreateName("");
       setWorkspaceHubOpen(false);
       await loadBootstrap();
       await loadWorkspaceShellData();
     } catch (error) {
-      console.error(error);
+      reportError(error, "Unable to create workspace.");
     } finally {
       setWorkspaceBusy(false);
     }
-  }, [loadBootstrap, loadWorkspaceShellData, workspaceCreateName]);
+  }, [loadBootstrap, loadWorkspaceShellData, reportError, workspaceCreateName]);
 
   const requestWorkspaceJoin = useCallback(async () => {
-    if (!workspaceJoinValue.trim()) return;
+    if (!selectedJoinWorkspaceId) return;
     setWorkspaceBusy(true);
     try {
       const response = await fetch("/api/workspaces/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceKey: workspaceJoinValue.trim() }),
+        body: JSON.stringify({ workspaceId: selectedJoinWorkspaceId }),
       });
       const payload = await readJsonSafe(response);
       if (!response.ok) throw new Error(payload?.message ?? "Unable to request workspace access.");
       setWorkspaceJoinValue("");
+      setSelectedJoinWorkspaceId(null);
       await loadWorkspaceShellData();
     } catch (error) {
-      console.error(error);
+      reportError(error, "Unable to request workspace access.");
     } finally {
       setWorkspaceBusy(false);
     }
-  }, [loadWorkspaceShellData, workspaceJoinValue]);
+  }, [loadWorkspaceShellData, reportError, selectedJoinWorkspaceId]);
 
   const switchWorkspace = useCallback(async (workspaceId: string) => {
     setWorkspaceBusy(true);
@@ -991,6 +938,44 @@ export function WorkspaceApp() {
       setWorkspaceBusy(false);
     }
   }, [loadBootstrap, loadWorkspaceShellData]);
+
+  const openWorkspaceManager = useCallback(async (workspaceId: string) => {
+    const workspaceEntry = workspaceCatalog.find((workspace) => workspace.id === workspaceId) ?? null;
+    if (!workspaceEntry) return;
+    setWorkspaceBusy(true);
+    try {
+      const response = await fetch(`/api/workspaces/members?workspaceId=${encodeURIComponent(workspaceId)}`, { cache: "no-store" });
+      const payload = await readJsonSafe(response);
+      if (!response.ok) throw new Error(payload?.message ?? "Unable to load workspace members.");
+      setManagedWorkspace(workspaceEntry);
+      setManagedWorkspaceMembers((payload?.members as WorkspaceMember[] | undefined) ?? []);
+      setMembersDialogOpen(true);
+    } catch (error) {
+      reportError(error, "Unable to load workspace members.");
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }, [reportError, workspaceCatalog]);
+
+  const updateWorkspaceMemberRole = useCallback(async (userId: string, role: MemberRole) => {
+    if (!managedWorkspace) return;
+    setUpdatingWorkspaceMemberId(userId);
+    try {
+      const response = await fetch("/api/workspaces/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: managedWorkspace.id, userId, role }),
+      });
+      const payload = await readJsonSafe(response);
+      if (!response.ok) throw new Error(payload?.message ?? "Unable to update member role.");
+      setManagedWorkspaceMembers((payload?.members as WorkspaceMember[] | undefined) ?? []);
+      await loadWorkspaceShellData();
+    } catch (error) {
+      reportError(error, "Unable to update member role.");
+    } finally {
+      setUpdatingWorkspaceMemberId(null);
+    }
+  }, [loadWorkspaceShellData, managedWorkspace, reportError]);
 
   const deleteWorkspace = useCallback(async (workspaceId: string) => {
     setWorkspaceBusy(true);
@@ -1044,15 +1029,6 @@ export function WorkspaceApp() {
     }
     await loadWorkspaceShellData();
   }, [loadWorkspaceShellData, respondToWorkspaceRequest, switchWorkspace]);
-
-  const updateMemberRole = useCallback(async (userId: string, role: MemberRole) => {
-    if (!permissions?.manageMembers) return;
-    try {
-      await emitAck("member:role", { userId, role });
-    } catch (error) {
-      console.error(error);
-    }
-  }, [emitAck, permissions?.manageMembers]);
 
   const inboxEntries = useMemo<InboxEntry[]>(() => {
     const entries: InboxEntry[] = [];
@@ -1190,9 +1166,8 @@ export function WorkspaceApp() {
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <header className="glass-surface flex items-center justify-between gap-3 rounded-[26px] px-2.5 py-3 shadow-[0_20px_60px_rgba(43,75,185,0.05)] sm:px-3">
             <div className="relative min-w-[180px] md:min-w-[220px]">
-              <button className="flex w-full items-center justify-between rounded-full bg-white/85 px-4 py-3 text-left text-sm font-medium shadow-[inset_0_0_0_1px_rgba(195,198,215,0.4)]" onClick={() => setWorkspaceHubOpen(true)} type="button">
-                <span className="truncate">{activeWorkspace?.name ?? workspace.name}</span>
-                <span className="text-xs text-muted-foreground">{activeWorkspace?.workspaceKey ?? workspace.workspaceKey}</span>
+              <button className="flex w-full items-center rounded-full bg-white/85 px-4 py-3 text-left text-sm font-medium shadow-[inset_0_0_0_1px_rgba(195,198,215,0.4)]" onClick={() => setWorkspaceHubOpen(true)} type="button">
+                <span className="truncate">{formatWorkspaceName(activeWorkspace?.name ?? workspace.name)}</span>
               </button>
             </div>
 
@@ -1271,7 +1246,7 @@ export function WorkspaceApp() {
           {snapshot.enterpriseMeta?.licenseWarning ? <div className="rounded-[22px] bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-[inset_0_0_0_1px_rgba(244,63,94,0.16)]">{snapshot.enterpriseMeta.licenseWarning}</div> : null}
 
           <main className="min-w-0 space-y-4">
-            {workspaceHubOpen ? <WorkspaceHubView busy={workspaceBusy} createName={workspaceCreateName} joinValue={workspaceJoinValue} onCreateNameChange={setWorkspaceCreateName} onCreateWorkspace={createWorkspace} onDeleteWorkspace={deleteWorkspace} onJoinValueChange={setWorkspaceJoinValue} onJoinWorkspace={requestWorkspaceJoin} onRespondRequest={respondToWorkspaceRequest} onSwitchWorkspace={switchWorkspace} requests={workspaceJoinRequests} workspaces={workspaceCatalog} /> : null}
+            {workspaceHubOpen ? <WorkspaceHubView busy={workspaceBusy} createName={workspaceCreateName} discoverableWorkspaces={workspaceDirectory} joinValue={workspaceJoinValue} onCreateNameChange={setWorkspaceCreateName} onCreateWorkspace={createWorkspace} onDeleteWorkspace={deleteWorkspace} onJoinValueChange={(value) => { setWorkspaceJoinValue(value); setSelectedJoinWorkspaceId(null); }} onJoinWorkspace={requestWorkspaceJoin} onManageWorkspace={openWorkspaceManager} onRespondRequest={respondToWorkspaceRequest} onSelectJoinWorkspace={(workspaceId, workspaceName) => { setSelectedJoinWorkspaceId(workspaceId); setWorkspaceJoinValue(workspaceName); }} onSwitchWorkspace={switchWorkspace} requests={workspaceJoinRequests} selectedJoinWorkspaceId={selectedJoinWorkspaceId} workspaces={workspaceCatalog} /> : null}
             {!workspaceHubOpen && view === "home" ? <HomeView focusTasks={focusTasks} inboxCount={inboxEntries.length} onOpenInbox={() => { setWorkspaceHubOpen(false); setView("inbox"); }} onOpenCalendar={() => setView("calendar")} onOpenCollaborate={() => { setView("collaborate"); }} onOpenTask={openTaskDetail} recentDecisionNotes={recentDecisionNotes} reviewTasks={waitingTasks} upcomingEvents={upcomingEvents} /> : null}
             {!workspaceHubOpen && view === "inbox" ? <InboxView activeFilter={inboxFilter} items={filteredInboxEntries} onFilterChange={setInboxFilter} onOpenItem={(item) => void handleInboxOpen(item)} onSecondaryAction={(item) => void handleInboxSecondary(item)} /> : null}
             {!workspaceHubOpen && view === "my-work" ? <MyWorkView dueTodayTasks={myDueTodayTasks} focusTasks={myFocusTasks} onOpenTask={openTaskDetail} recentTasks={myRecentTasks} waitingTasks={myWaitingTasks} /> : null}
@@ -1297,7 +1272,6 @@ export function WorkspaceApp() {
                     <Button className="w-full justify-start" onClick={() => { setView("calendar"); setMobileMoreOpen(false); }} size="sm" variant="outline"><CalendarDays className="size-4" />Calendar</Button>
                     <Button className="w-full justify-start" onClick={() => { setView("collaborate"); setMobileMoreOpen(false); }} size="sm" variant="outline"><PanelsTopLeft className="size-4" />Collaborate</Button>
                     <Button className="w-full justify-start" onClick={() => { setWorkspaceHubOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Rocket className="size-4" />Workspaces</Button>
-                    <Button className="w-full justify-start" onClick={() => { setMembersDialogOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Users className="size-4" />Members</Button>
                     <Button className="w-full justify-start" onClick={() => { setProfileDialogOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Sparkles className="size-4" />Settings</Button>
                   </div>
                 </div>
@@ -1310,12 +1284,11 @@ export function WorkspaceApp() {
       <TaskCreateDialog onChange={setTaskDraft} onOpenChange={setTaskDialogOpen} onSubmit={submitTask} open={taskDialogOpen} taskDraft={taskDraft} />
       {currentUser ? <TaskDetailDialog currentUser={currentUser} deletingAttachmentId={deletingAttachmentId} deletingCommentId={deletingCommentId} deletingTask={deletingTaskId === selectedTaskId} members={members} onCommentChange={setTaskCommentDraft} onCommentDelete={deleteTaskComment} onCommentSubmit={submitTaskComment} onDeleteTask={deleteTask} onFileDelete={deleteAttachment} onFileUpload={uploadAttachment} onOpenChange={setTaskDetailOpen} onReplyTargetChange={setReplyTargetId} onSave={saveTaskDetail} open={taskDetailOpen} permissions={permissions} replyTargetId={replyTargetId} selectedTask={selectedTask} setTaskDetailDraft={setTaskDetailDraft} taskCommentDraft={taskCommentDraft} taskDetailDraft={taskDetailDraft} uploadBusy={uploadBusy} userDirectory={userDirectory} /> : null}
       <EventDialog deleting={deletingEventId === editingEventId} editing={Boolean(editingEventId)} eventDraft={eventDraft} onChange={setEventDraft} onDelete={editingEventId ? deleteEvent : undefined} onOpenChange={setEventDialogOpen} onSubmit={submitEvent} open={eventDialogOpen} />
-      <ProfileDialog canManageMembers={permissions.manageMembers} currentUser={currentUser} mfaManageCode={mfaManageCode} mfaSetup={mfaSetup} onBeginMfaSetup={beginMfaSetup} onChange={setProfileDraft} onDisableMfa={disableMfaForCurrentUser} onEnableMfa={enableMfaForCurrentUser} onLogout={logout} onManageMembers={() => { setProfileDialogOpen(false); setMembersDialogOpen(true); }} onMfaCodeChange={setMfaManageCode} onOpenAudit={() => { setProfileDialogOpen(false); void openAuditLog(); }} onOpenChange={setProfileDialogOpen} onSubmit={saveProfile} open={profileDialogOpen} profileDraft={profileDraft} />
-      <MembersDialog currentUser={currentUser} generatedInviteLink={generatedInviteLink} inviteEmail={inviteEmail} inviteRole={inviteRole} members={members} onInviteCreate={createInviteLink} onInviteEmailChange={setInviteEmail} onInviteRoleChange={setInviteRole} onOpenChange={setMembersDialogOpen} onRoleChange={updateMemberRole} open={membersDialogOpen} />
+      <ProfileDialog currentUser={currentUser} onChange={setProfileDraft} onLogout={logout} onOpenChange={setProfileDialogOpen} onSubmit={saveProfile} open={profileDialogOpen} profileDraft={profileDraft} />
+      <MembersDialog currentUser={currentUser} members={managedWorkspaceMembers} onOpenChange={(value) => { setMembersDialogOpen(value); if (!value) { setManagedWorkspace(null); setManagedWorkspaceMembers([]); } }} onRoleChange={updateWorkspaceMemberRole} open={membersDialogOpen} updatingUserId={updatingWorkspaceMemberId} workspaceName={formatWorkspaceName(managedWorkspace?.name ?? "Workspace")} />
       <SavedViewsDialog onApply={applySavedView} onCreate={createSavedView} onDelete={deleteSavedView} onOpenChange={setSavedViewsOpen} open={savedViewsOpen} savedViews={savedViews} />
       <AutomationDialog onOpenChange={setAutomationOpen} onToggle={toggleAutomationRule} open={automationOpen} rules={automationRules} />
       <InsightsDialog analytics={analytics} onOpenChange={setInsightsOpen} open={insightsOpen} />
-      <AuditDialog auditLogs={auditLogs} onOpenChange={setAuditDialogOpen} open={auditDialogOpen} />
     </div>
   );
 }

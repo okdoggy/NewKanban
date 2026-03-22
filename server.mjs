@@ -23,7 +23,7 @@ const defaultOwnerPassword = process.env.DEMO_OWNER_PASSWORD ?? "Admin123!";
 const defaultOwnerName = process.env.DEMO_OWNER_NAME ?? "Workspace Owner";
 const enterpriseMode = process.env.ENTERPRISE_MODE === "true";
 const mongoLicenseAcknowledged = process.env.MONGODB_LICENSE_ACKNOWLEDGED === "true";
-const colorPalette = ["#2b4bb9", "#ec4899", "#14b8a6", "#f97316", "#8b5cf6", "#22c55e"];
+const colorPalette = ["#2b4bb9", "#4865d3", "#0ea5e9", "#14b8a6", "#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#d946ef", "#8b5cf6", "#6366f1", "#64748b", "#111827"];
 
 let requestHandler = (_req, res) => {
   res.statusCode = 503;

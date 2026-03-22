@@ -38,7 +38,7 @@ import {
   getInitials,
   SelectField,
 } from "@/components/workspace/shared";
-import { formatDate, parseDate, relativeTime } from "@/lib/date-utils";
+import { relativeTime } from "@/lib/date-utils";
 import type {
   AnalyticsSummary,
   AuditLogItem,
@@ -563,61 +563,106 @@ export function EventDialog({ open, onOpenChange, eventDraft, onChange, onSubmit
   );
 }
 
-export function ProfileDialog({ open, onOpenChange, profileDraft, onChange, onSubmit, currentUser, mfaSetup, onBeginMfaSetup, onEnableMfa, onDisableMfa, mfaManageCode, onMfaCodeChange, calendarFeedUrl, canManageMembers = false, onManageMembers, onOpenAudit, onLogout }: { open: boolean; onOpenChange: (value: boolean) => void; profileDraft: { name: string; handle: string; color: string }; onChange: (value: { name: string; handle: string; color: string }) => void; onSubmit: () => void; currentUser: AuthenticatedUser; mfaSetup: { secret: string; otpAuthUrl: string } | null; onBeginMfaSetup: () => void; onEnableMfa: () => void; onDisableMfa: () => void; mfaManageCode: string; onMfaCodeChange: (value: string) => void; calendarFeedUrl?: string; canManageMembers?: boolean; onManageMembers?: () => void; onOpenAudit?: () => void; onLogout?: () => void; }) {
+export function ProfileDialog({ open, onOpenChange, profileDraft, onChange, onSubmit, currentUser, onLogout }: { open: boolean; onOpenChange: (value: boolean) => void; profileDraft: { name: string; color: string }; onChange: (value: { name: string; color: string }) => void; onSubmit: () => void; currentUser: AuthenticatedUser; onLogout?: () => void; }) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6"><DialogTitle>Profile & identity</DialogTitle><DialogDescription>Your account info drives presence, attribution, and security state.</DialogDescription></DialogHeader>
-        <div className="space-y-6 px-6 py-6">
-          <Field label="Display name"><Input onChange={(event) => onChange({ ...profileDraft, name: event.target.value })} value={profileDraft.name} /></Field>
-          <Field label="Handle"><Input onChange={(event) => onChange({ ...profileDraft, handle: event.target.value })} value={profileDraft.handle} /></Field>
-          <Field label="Avatar color"><div className="flex items-center gap-3">{PALETTE.map((color) => <button className={cn("h-10 w-10 rounded-full border-2 transition-transform hover:scale-105", profileDraft.color === color ? "border-primary" : "border-white/60")} key={color} onClick={() => onChange({ ...profileDraft, color })} style={{ backgroundColor: color }} type="button" />)}</div></Field>
-          {calendarFeedUrl ? <Card className="border-0 bg-slate-50/80 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)]"><CardHeader className="pb-3"><CardTitle className="text-lg">Read-only calendar feed</CardTitle><CardDescription>Use this authenticated-friendly feed URL for internal calendar subscriptions and exports.</CardDescription></CardHeader><CardContent><div className="rounded-[18px] bg-white px-4 py-3 text-xs text-primary shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)] break-all">{calendarFeedUrl}</div></CardContent></Card> : null}
+      <DialogContent className="w-[920px] max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0 sm:max-w-[920px]">
+        <DialogHeader className="border-b px-6 py-5">
+          <DialogTitle className="font-heading text-3xl tracking-tight">Account</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-6 px-6 py-6 md:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="space-y-6">
+            <Card className="border-0 bg-slate-50/80 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)]">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full text-lg font-semibold text-white" style={{ backgroundColor: profileDraft.color }}>
+                  {getInitials(profileDraft.name || currentUser.name)}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-semibold">{profileDraft.name || currentUser.name}</p>
+                  <p className="truncate text-sm text-muted-foreground">{currentUser.email}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Field label="Display name">
+              <Input className="h-11" onChange={(event) => onChange({ ...profileDraft, name: event.target.value })} value={profileDraft.name} />
+            </Field>
+          </div>
+
           <Card className="border-0 bg-slate-50/80 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)]">
-            <CardHeader className="pb-3"><CardTitle className="text-lg">Multi-factor authentication</CardTitle><CardDescription>{currentUser.mfaEnabled ? "MFA is enabled for this account." : "Add a TOTP authenticator for stronger sign-in security."}</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
-              {mfaSetup ? <div className="space-y-3 rounded-[18px] bg-white px-4 py-4 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)]"><p className="text-sm font-medium">Secret</p><p className="font-mono text-sm">{mfaSetup.secret}</p><p className="text-xs text-muted-foreground break-all">{mfaSetup.otpAuthUrl}</p></div> : null}
-              <Input onChange={(event) => onMfaCodeChange(event.target.value)} placeholder="Enter 6-digit MFA code" value={mfaManageCode} />
-              <div className="flex gap-2">{!currentUser.mfaEnabled ? <><Button onClick={onBeginMfaSetup} size="sm" variant="outline">Generate secret</Button><Button onClick={onEnableMfa} size="sm">Enable MFA</Button></> : <Button onClick={onDisableMfa} size="sm" variant="outline">Disable MFA</Button>}</div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Color</CardTitle>
+              <CardDescription>Choose the color used for your avatar and presence.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-5 gap-2">
+                {PALETTE.map((color) => (
+                  <button
+                    aria-label={`Select color ${color}`}
+                    className={cn("h-9 w-9 rounded-full border-2 transition hover:scale-105", profileDraft.color === color ? "border-primary ring-2 ring-primary/20" : "border-white/60")}
+                    key={color}
+                    onClick={() => onChange({ ...profileDraft, color })}
+                    style={{ backgroundColor: color }}
+                    type="button"
+                  />
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
-        <DialogFooter className="mt-0" showCloseButton>
-          {canManageMembers ? <Button onClick={onManageMembers} variant="outline">Roles</Button> : null}
-          {canManageMembers ? <Button onClick={onOpenAudit} variant="outline">Audit</Button> : null}
-          {onLogout ? <Button onClick={onLogout} variant="ghost">Logout</Button> : null}
+        <div className="flex items-center justify-between gap-3 border-t bg-muted/50 px-6 py-4">
+          {onLogout ? <Button onClick={onLogout} variant="ghost">Logout</Button> : <span />}
           <Button onClick={onSubmit}>Save profile</Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-export function MembersDialog({ open, onOpenChange, members, onRoleChange, currentUser, inviteEmail, inviteRole, onInviteEmailChange, onInviteRoleChange, onInviteCreate, generatedInviteLink }: { open: boolean; onOpenChange: (value: boolean) => void; members: WorkspaceMember[]; onRoleChange: (userId: string, role: MemberRole) => void; currentUser: AuthenticatedUser; inviteEmail: string; inviteRole: MemberRole; onInviteEmailChange: (value: string) => void; onInviteRoleChange: (value: MemberRole) => void; onInviteCreate: () => void; generatedInviteLink: string | null; }) {
+export function MembersDialog({ open, onOpenChange, workspaceName, members, onRoleChange, currentUser, updatingUserId }: { open: boolean; onOpenChange: (value: boolean) => void; workspaceName: string; members: WorkspaceMember[]; onRoleChange: (userId: string, role: MemberRole) => void; currentUser: AuthenticatedUser; updatingUserId?: string | null; }) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6"><DialogTitle>Role management</DialogTitle><DialogDescription>Owners can promote or restrict access using the formal permission model.</DialogDescription></DialogHeader>
-        <div className="space-y-6 px-6 py-6">
-          <Card className="border-0 bg-slate-50/80 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)]">
-            <CardHeader className="pb-3"><CardTitle className="text-lg">Invite teammate</CardTitle><CardDescription>Create a shareable invite link with a preset role.</CardDescription></CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-[minmax(0,1fr)_140px_140px]">
-              <Input onChange={(event) => onInviteEmailChange(event.target.value)} placeholder="teammate@example.com" value={inviteEmail} />
-              <select className="input-shell" onChange={(event) => onInviteRoleChange(event.target.value as MemberRole)} value={inviteRole}>
-                <option value="viewer">viewer</option>
-                <option value="editor">editor</option>
-                <option value="owner">owner</option>
-              </select>
-              <Button onClick={onInviteCreate}>Generate invite</Button>
-              {generatedInviteLink ? <div className="md:col-span-3 rounded-[18px] bg-white px-4 py-3 text-sm text-primary shadow-[inset_0_0_0_1px_rgba(195,198,215,0.28)] break-all">{generatedInviteLink}</div> : null}
-            </CardContent>
-          </Card>
-          <Table>
-            <TableHeader><TableRow><TableHead>Member</TableHead><TableHead>Handle</TableHead><TableHead>Role</TableHead><TableHead>Joined</TableHead></TableRow></TableHeader>
-            <TableBody>{members.map((member) => <TableRow key={member.userId}><TableCell><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: member.color }}>{getInitials(member.name)}</div><div><p className="font-medium">{member.name}</p><p className="text-xs text-muted-foreground">{member.email}</p></div></div></TableCell><TableCell>@{member.handle}</TableCell><TableCell>{member.userId === currentUser.userId ? <Badge className={cn("rounded-full border-0", roleMeta[member.role])}>{member.role}</Badge> : <select className="input-shell" onChange={(event) => onRoleChange(member.userId, event.target.value as MemberRole)} value={member.role}><option value="owner">owner</option><option value="editor">editor</option><option value="viewer">viewer</option></select>}</TableCell><TableCell>{formatDate(parseDate(member.joinedAt), { month: "short", day: "numeric" })}</TableCell></TableRow>)}</TableBody>
+      <DialogContent className="w-[1080px] max-h-[84vh] max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0 sm:max-w-[1080px]">
+        <DialogHeader className="border-b px-4 py-3"><DialogTitle className="font-heading text-xl tracking-tight">{workspaceName}</DialogTitle></DialogHeader>
+        <div className="max-h-[calc(84vh-60px)] overflow-auto px-4 py-3">
+          <Table className="table-fixed">
+            <TableHeader>
+              <TableRow className="border-b bg-background/95">
+                <TableHead className="sticky top-0 z-10 w-[32%] bg-background/95 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Member</TableHead>
+                <TableHead className="sticky top-0 z-10 w-[20%] bg-background/95 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">ID</TableHead>
+                <TableHead className="sticky top-0 z-10 w-[34%] bg-background/95 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Email</TableHead>
+                <TableHead className="sticky top-0 z-10 w-[14%] bg-background/95 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Role</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow className="bg-slate-50/75" key={member.userId}>
+                  <TableCell className="py-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold leading-none text-white" style={{ backgroundColor: member.color }}>
+                        {getInitials(member.name)}
+                      </div>
+                      <span className="truncate text-[13px] font-medium">{member.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="truncate py-2 text-[12px] text-muted-foreground">@{member.handle}</TableCell>
+                  <TableCell className="truncate py-2 text-[12px] text-muted-foreground">{member.email}</TableCell>
+                  <TableCell className="py-2">
+                    {member.userId === currentUser.userId ? (
+                      <Badge className={cn("rounded-full border-0 px-2 py-0.5 text-[10px]", roleMeta[member.role])}>{member.role}</Badge>
+                    ) : (
+                      <select className="input-shell h-7 w-[88px] min-w-[88px] rounded-full px-2 text-[11px]" disabled={updatingUserId === member.userId} onChange={(event) => onRoleChange(member.userId, event.target.value as MemberRole)} value={member.role}>
+                        <option value="owner">Owner</option>
+                        <option value="editor">Edit</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
           </Table>
         </div>
-        <DialogFooter className="mt-0" showCloseButton />
       </DialogContent>
     </Dialog>
   );

@@ -20,9 +20,8 @@ export async function GET() {
     listUserWorkspaces(db, auth.user._id),
     auth.membership.role === "owner" ? listPendingJoinRequests(db, auth.workspaceId) : Promise.resolve([]),
   ]);
-  const workspaces = await Promise.all(
+  const catalog = await Promise.all(
     memberships
-      .filter((workspace) => Boolean(workspace.role))
       .map(async (workspace) => {
         const [memberCount, pendingRequestCount] = await Promise.all([
           db.collection("memberships").countDocuments({ workspaceId: workspace.id }),
@@ -41,7 +40,25 @@ export async function GET() {
       }),
   );
 
-  return Response.json({ workspaces, requests, activeWorkspaceId: auth.workspaceId }, { headers: { "Cache-Control": "no-store" } });
+  const currentWorkspaceIncluded = catalog.some((workspace) => workspace.id === auth.workspaceId);
+  if (!currentWorkspaceIncluded) {
+    const currentWorkspace = await ensureWorkspaceDocument(db, auth.workspaceId);
+    catalog.unshift({
+      id: currentWorkspace.id,
+      name: currentWorkspace.name,
+      workspaceKey: currentWorkspace.workspaceKey,
+      role: auth.membership.role,
+      memberCount: await db.collection("memberships").countDocuments({ workspaceId: currentWorkspace.id }),
+      pendingRequestCount: await db.collection("workspace_join_requests").countDocuments({ workspaceId: currentWorkspace.id, status: "pending" }),
+      joinRequested: false,
+      isActive: true,
+    });
+  }
+
+  const workspaces = catalog.filter((workspace) => Boolean(workspace.role));
+  const discoverableWorkspaces = catalog.filter((workspace) => !workspace.role);
+
+  return Response.json({ workspaces, discoverableWorkspaces, requests, activeWorkspaceId: auth.workspaceId }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {

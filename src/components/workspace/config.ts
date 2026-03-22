@@ -20,7 +20,7 @@ import {
   PanelsTopLeft,
 } from "lucide-react";
 
-export const PALETTE = ["#2b4bb9", "#ec4899", "#14b8a6", "#f97316", "#8b5cf6", "#22c55e"];
+export const PALETTE = ["#2b4bb9", "#4865d3", "#0ea5e9", "#14b8a6", "#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#d946ef", "#8b5cf6", "#6366f1", "#64748b", "#111827"];
 export const STATUS_ORDER: TaskStatus[] = ["todo", "progress", "review", "done"];
 export const VIEWS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard }> = [
   { key: "home", label: "Home", icon: LayoutDashboard },

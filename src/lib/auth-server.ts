@@ -32,7 +32,7 @@ import type {
 } from "@/lib/types";
 
 const WORKSPACE_ID = DEFAULT_WORKSPACE_ID;
-const COLOR_PALETTE = ["#2b4bb9", "#ec4899", "#14b8a6", "#f97316", "#8b5cf6", "#22c55e"];
+const COLOR_PALETTE = ["#2b4bb9", "#4865d3", "#0ea5e9", "#14b8a6", "#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#ec4899", "#d946ef", "#8b5cf6", "#6366f1", "#64748b", "#111827"];
 const APP_ISSUER = process.env.APP_ISSUER ?? "NewKanban";
 
 export interface UserDocument {
@@ -165,12 +165,25 @@ function buildCurrentUser(user: UserDocument, membership: MembershipDocument): A
 
 function buildWorkspaceKey(name: string) {
   return name
-    .replace(/^VisualAI-?/i, "")
     .split(/[^a-zA-Z0-9]+/)
     .filter(Boolean)
     .slice(0, 3)
     .join("-")
     .toUpperCase() || `VAI-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+}
+
+async function buildUniqueWorkspaceKey(db: Db, name: string) {
+  const records = db.collection<WorkspaceRecordDocument>("workspace_records");
+  const base = buildWorkspaceKey(name);
+  let candidate = base;
+  let counter = 1;
+
+  while (await records.findOne({ workspaceKey: candidate })) {
+    counter += 1;
+    candidate = `${base}-${counter}`;
+  }
+
+  return candidate;
 }
 
 async function ensureWorkspaceRecord(db: Db, workspace: WorkspaceRecordDocument) {
@@ -507,11 +520,12 @@ export async function createWorkspaceForUser(db: Db, auth: AuthContext, input: {
     id = `${slugifyWorkspace(name)}-${counter}`;
   }
   const now = new Date().toISOString();
+  const workspaceKey = await buildUniqueWorkspaceKey(db, name);
   await ensureWorkspaceRecord(db, {
     _id: id,
     id,
     name,
-    workspaceKey: buildWorkspaceKey(name),
+    workspaceKey,
     description: input.description?.trim() || `Workspace for ${name}`,
     ownerUserId: auth.user._id,
     createdAt: now,

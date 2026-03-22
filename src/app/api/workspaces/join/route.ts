@@ -7,7 +7,7 @@ import { getMongoDb } from "@/lib/mongo";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const payload = (await request.json()) as { workspaceKey?: string; message?: string };
+  const payload = (await request.json()) as { workspaceId?: string; workspaceKey?: string; message?: string };
   const cookieStore = await cookies();
   const db = await getMongoDb();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -16,10 +16,13 @@ export async function POST(request: Request) {
     return Response.json({ message: "Authentication required." }, { status: 401 });
   }
 
+  const workspaceId = (payload.workspaceId ?? "").trim();
   const workspaceKey = (payload.workspaceKey ?? "").trim().toUpperCase();
-  const workspace = await db.collection<{ _id: string }>("workspace_records").findOne({ workspaceKey });
+  const workspace = workspaceId
+    ? await db.collection<{ _id: string }>("workspace_records").findOne({ _id: workspaceId })
+    : await db.collection<{ _id: string }>("workspace_records").findOne({ workspaceKey });
   if (!workspace) {
-    return Response.json({ message: "Workspace key not found." }, { status: 404 });
+    return Response.json({ message: workspaceId ? "Workspace not found." : "Workspace key not found." }, { status: 404 });
   }
 
   try {
