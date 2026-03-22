@@ -18,6 +18,7 @@ import {
 import type {
   AuditLogItem,
   AuthenticatedUser,
+  LanguageCode,
   MemberRole,
   NotificationItem,
   PermissionSet,
@@ -35,6 +36,7 @@ export interface UserDocument {
   handle: string;
   name: string;
   color: string;
+  locale?: LanguageCode;
   passwordHash: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
@@ -121,6 +123,7 @@ function buildCurrentUser(user: UserDocument, membership: MembershipDocument): A
     handle: user.handle,
     name: user.name,
     color: user.color,
+    locale: user.locale ?? "en",
     role: membership.role,
     emailVerified: user.emailVerified,
     mfaEnabled: user.mfaEnabled,
@@ -250,6 +253,7 @@ export async function registerUser(
     handle,
     name: input.name.trim(),
     color: colorForSeed(email),
+    locale: "en",
     passwordHash: makePasswordHash(input.password),
     emailVerified: input.emailVerified ?? false,
     mfaEnabled: false,
@@ -377,6 +381,7 @@ export async function listWorkspaceMembers(db: Db, workspaceId = WORKSPACE_ID): 
         handle: user.handle,
         name: user.name,
         color: user.color,
+        locale: user.locale ?? "en",
         role: membership.role,
         emailVerified: user.emailVerified,
         mfaEnabled: user.mfaEnabled,

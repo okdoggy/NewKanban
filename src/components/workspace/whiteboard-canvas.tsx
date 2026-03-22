@@ -514,7 +514,8 @@ function normalizeTemplateRegistry(scene?: WhiteboardScene | null) {
   };
 }
 
-export function WhiteboardCanvas({ scene, onSceneChange, canEdit, scopeKey }: { scene?: WhiteboardScene | null; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; canEdit: boolean; scopeKey: string; }) {
+export function WhiteboardCanvas({ scene, onSceneChange, canEdit, scopeKey, locale: _locale }: { scene?: WhiteboardScene | null; onSceneChange?: (scene: WhiteboardScene, reason?: "auto" | "manual") => void | Promise<void>; canEdit: boolean; scopeKey: string; locale: "en" | "ko"; }) {
+  void _locale;
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAppliedSceneRef = useRef("");

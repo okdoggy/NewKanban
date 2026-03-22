@@ -114,15 +114,16 @@ export function useWorkspaceRealtime({
     });
   }, [authenticated, connectedAtRef, deviceIdRef, view]);
 
-  const emitAck = useCallback((event: string, payload: Record<string, unknown>) => {
+  const emitAck = useCallback((event: string, payload: Record<string, unknown>, options?: { timeoutMs?: number }) => {
     return new Promise<void>((resolve, reject) => {
       if (!socketRef.current) {
         reject(new Error("Realtime connection unavailable."));
         return;
       }
+      const timeoutMs = options?.timeoutMs ?? 8000;
       const timeoutId = window.setTimeout(() => {
         reject(new Error(`${event} timed out.`));
-      }, 8000);
+      }, timeoutMs);
       socketRef.current.emit(event, payload, (response: { ok: boolean; error?: string }) => {
         window.clearTimeout(timeoutId);
         if (response?.ok) resolve();

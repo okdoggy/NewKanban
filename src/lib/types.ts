@@ -1,4 +1,5 @@
 export type ViewKey = "home" | "inbox" | "my-work" | "projects" | "calendar" | "collaborate";
+export type LanguageCode = "en" | "ko";
 export type CalendarViewMode = "month" | "week" | "day";
 export type GanttZoom = "compact" | "balanced" | "focus";
 export type DecisionSection = "ideas" | "questions" | "risks" | "decisions" | "actions";
@@ -24,6 +25,7 @@ export interface AuthenticatedUser {
   handle: string;
   name: string;
   color: string;
+  locale: LanguageCode;
   role: MemberRole;
   emailVerified: boolean;
   mfaEnabled: boolean;

@@ -271,6 +271,7 @@ async function listMembers(db, workspaceId) {
         handle: user.handle,
         name: user.name,
         color: user.color,
+        locale: user.locale ?? "en",
         role: membership.role,
         emailVerified: user.emailVerified,
         mfaEnabled: user.mfaEnabled,
@@ -318,6 +319,7 @@ async function getAuthContextFromCookieHeader(db, cookieHeader) {
       handle: user.handle,
       name: user.name,
       color: user.color,
+      locale: user.locale ?? "en",
       role: membership.role,
       emailVerified: user.emailVerified,
       mfaEnabled: user.mfaEnabled,
@@ -802,6 +804,7 @@ async function main() {
               name: String(payload.name ?? actor.currentUser.name).trim(),
               handle: normalizedHandle,
               color: String(payload.color ?? actor.currentUser.color),
+              locale: payload.locale === "ko" ? "ko" : payload.locale === "en" ? "en" : (actor.currentUser.locale ?? "en"),
             },
           },
         );
@@ -1106,7 +1109,9 @@ async function main() {
           workspace.activity.unshift(makeActivity(actor, "updated", "note", "Whiteboard canvas"));
           workspace.activity = workspace.activity.slice(0, 20);
         });
-        await broadcastState(io, db, actor.workspaceId);
+        void broadcastState(io, db, actor.workspaceId).catch((error) => {
+          console.error("Failed to broadcast whiteboard state", error);
+        });
       }),
     );
 

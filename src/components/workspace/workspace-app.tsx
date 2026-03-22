@@ -6,6 +6,7 @@ import {
   Command,
   Inbox,
   LayoutDashboard,
+  Languages,
   ListTodo,
   PanelsTopLeft,
   Rocket,
@@ -53,6 +54,7 @@ import {
   CalendarView,
   WorkspaceHubView,
 } from "@/components/workspace/views";
+import { getStatusLabel, getViewLabel, getWorkspaceText, normalizeLocale } from "@/components/workspace/i18n";
 import { useWorkspaceRealtime } from "@/components/workspace/hooks/use-workspace-realtime";
 import { useWorkspaceSession } from "@/components/workspace/hooks/use-workspace-session";
 import {
@@ -67,6 +69,7 @@ import type {
   AgendaEvent,
   AnalyticsSummary,
   EventDraft,
+  LanguageCode,
   MemberRole,
   SavedView,
   TaskDraft,
@@ -236,6 +239,9 @@ export function WorkspaceApp() {
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>("all");
   const [surfaceNotice, setSurfaceNotice] = useState<SurfaceNotice | null>(null);
   const shellRefreshRef = useRef<(() => Promise<void>) | null>(null);
+  const whiteboardSaveInFlightRef = useRef(false);
+  const pendingWhiteboardSaveRef = useRef<{ scene: WhiteboardScene; reason: "auto" | "manual"; workspaceId: string } | null>(null);
+  const lastWhiteboardSavedRef = useRef("");
 
   const { connectionState, emitAck, disconnect, reconnect } = useWorkspaceRealtime({
     authenticated: Boolean(snapshot?.authenticated),
@@ -265,6 +271,12 @@ export function WorkspaceApp() {
   const members = useMemo(() => snapshot?.members ?? [], [snapshot?.members]);
   const userDirectory = useMemo(() => snapshot?.userDirectory ?? [], [snapshot?.userDirectory]);
   const currentUser = snapshot?.currentUser ?? null;
+  const locale = normalizeLocale(currentUser?.locale);
+  const text = getWorkspaceText(locale);
+  const localizedViews = useMemo(
+    () => VIEWS.map((item) => ({ ...item, label: getViewLabel(locale, item.key) })),
+    [locale],
+  );
   const permissions = snapshot?.permissions ?? null;
   const selectedTask = selectedTaskId && workspace ? workspace.tasks.find((task) => task.id === selectedTaskId) ?? null : null;
 
@@ -367,8 +379,12 @@ export function WorkspaceApp() {
 
   useEffect(() => {
     if (workspace?.whiteboardScene && Array.isArray(workspace.whiteboardScene.elements)) {
+      lastWhiteboardSavedRef.current = JSON.stringify({ workspaceId: workspace.id, scene: workspace.whiteboardScene });
       setWhiteboardScene(workspace.whiteboardScene);
       return;
+    }
+    if (workspace?.id) {
+      lastWhiteboardSavedRef.current = JSON.stringify({ workspaceId: workspace.id, scene: null });
     }
     setWhiteboardScene({ elements: [], appState: {}, files: {}, version: 0, updatedAt: new Date().toISOString() });
   }, [workspace?.id, workspace?.whiteboardScene]);
@@ -584,6 +600,31 @@ export function WorkspaceApp() {
       console.error(error);
     }
   }, [emitAck, profileDraft]);
+
+  const updateLocale = useCallback(async (nextLocale: LanguageCode) => {
+    if (!currentUser || nextLocale === locale) return;
+    setSnapshot((current) => current ? {
+      ...current,
+      currentUser: {
+        ...current.currentUser!,
+        locale: nextLocale,
+      },
+      members: current.members?.map((member) => member.userId === currentUser.userId ? { ...member, locale: nextLocale } : member),
+    } : current);
+    try {
+      await emitAck("profile:update", { locale: nextLocale });
+    } catch (error) {
+      reportError(error, "Unable to change language.");
+      setSnapshot((current) => current ? {
+        ...current,
+        currentUser: {
+          ...current.currentUser!,
+          locale,
+        },
+        members: current.members?.map((member) => member.userId === currentUser.userId ? { ...member, locale } : member),
+      } : current);
+    }
+  }, [currentUser, emitAck, locale, reportError, setSnapshot]);
 
   const submitTask = useCallback(async () => {
     if (!permissions?.editWorkspace || !taskDraft.title.trim() || !taskDraft.description.trim()) return;
@@ -801,6 +842,29 @@ export function WorkspaceApp() {
     }
   }, [emitAck, patchTaskLocally, permissions?.editWorkspace]);
 
+  const flushWhiteboardSaveQueue = useCallback(async () => {
+    if (whiteboardSaveInFlightRef.current) return;
+    while (pendingWhiteboardSaveRef.current) {
+      const nextSave = pendingWhiteboardSaveRef.current;
+      pendingWhiteboardSaveRef.current = null;
+      if (activeWorkspaceIdRef.current !== nextSave.workspaceId) continue;
+      const serialized = JSON.stringify({ workspaceId: nextSave.workspaceId, scene: nextSave.scene });
+      if (serialized === lastWhiteboardSavedRef.current) continue;
+      whiteboardSaveInFlightRef.current = true;
+      try {
+        await emitAck("whiteboard:save", nextSave.scene as unknown as Record<string, unknown>, { timeoutMs: 20000 });
+        lastWhiteboardSavedRef.current = serialized;
+        if (nextSave.reason === "manual" && activeWorkspaceIdRef.current === nextSave.workspaceId) {
+          setSurfaceNotice({ message: "Canvas saved.", tone: "success" });
+        }
+      } catch (error) {
+        reportError(error, "Unable to save canvas.");
+      } finally {
+        whiteboardSaveInFlightRef.current = false;
+      }
+    }
+  }, [emitAck, reportError]);
+
   const saveWhiteboardScene = useCallback(async (scene: WhiteboardScene, reason: "auto" | "manual" = "auto") => {
     const expectedWorkspaceId = activeWorkspaceId;
     if (!expectedWorkspaceId) return;
@@ -816,14 +880,9 @@ export function WorkspaceApp() {
         },
       };
     });
-    try {
-      if (activeWorkspaceIdRef.current !== expectedWorkspaceId) return;
-      await emitAck("whiteboard:save", scene as unknown as Record<string, unknown>);
-      if (reason === "manual") setSurfaceNotice({ message: "Canvas saved.", tone: "success" });
-    } catch (error) {
-      reportError(error, "Unable to save canvas.");
-    }
-  }, [activeWorkspaceId, emitAck, reportError, setSnapshot]);
+    pendingWhiteboardSaveRef.current = { scene, reason, workspaceId: expectedWorkspaceId };
+    await flushWhiteboardSaveQueue();
+  }, [activeWorkspaceId, flushWhiteboardSaveQueue, setSnapshot]);
 
   const createSavedView = useCallback(async (name: string) => {
     try {
@@ -1087,10 +1146,10 @@ export function WorkspaceApp() {
 
   const commandMatches = useMemo(() => {
     const normalized = search.trim().toLowerCase();
-    const destinationMatches = VIEWS.filter((item) => !normalized || item.label.toLowerCase().includes(normalized)).slice(0, 6);
+    const destinationMatches = localizedViews.filter((item) => !normalized || item.label.toLowerCase().includes(normalized)).slice(0, 6);
     const taskMatches = filteredTasks.filter((task) => !normalized || task.title.toLowerCase().includes(normalized) || task.description.toLowerCase().includes(normalized)).slice(0, 6);
     return { destinationMatches, taskMatches };
-  }, [filteredTasks, search]);
+  }, [filteredTasks, localizedViews, search]);
 
   const handleInboxOpen = useCallback(async (item: InboxEntry) => {
     const directNotification = notifications.find((notification) => notification.id === item.id);
@@ -1145,7 +1204,7 @@ export function WorkspaceApp() {
           </button>
 
           <nav className="space-y-2">
-            {VIEWS.map((item) => {
+            {localizedViews.map((item) => {
               const Icon = item.icon;
               const active = item.key === view && !workspaceHubOpen;
               return (
@@ -1170,7 +1229,24 @@ export function WorkspaceApp() {
             })}
           </nav>
 
-          <div className="mt-auto" />
+          <div className="mt-auto space-y-3">
+            {!sidebarCollapsed ? (
+              <div className="rounded-[20px] bg-white/70 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]">
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <Languages className="size-3.5" />
+                  {text.language}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={() => void updateLocale("en")} size="sm" variant={locale === "en" ? "default" : "outline"}>{text.english}</Button>
+                  <Button onClick={() => void updateLocale("ko")} size="sm" variant={locale === "ko" ? "default" : "outline"}>{text.korean}</Button>
+                </div>
+              </div>
+            ) : (
+              <button className="flex h-10 w-full items-center justify-center rounded-[16px] bg-white/70 text-muted-foreground shadow-[inset_0_0_0_1px_rgba(195,198,215,0.24)]" onClick={() => void updateLocale(locale === "en" ? "ko" : "en")} type="button" title={text.language}>
+                <Languages className="size-4" />
+              </button>
+            )}
+          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -1186,16 +1262,16 @@ export function WorkspaceApp() {
                 <button className="flex w-full items-center justify-between rounded-full bg-white/85 px-4 py-3 text-left text-sm font-medium text-muted-foreground shadow-[inset_0_0_0_1px_rgba(195,198,215,0.35)]" onClick={() => setSearchOpen((current) => !current)} type="button">
                   <span className="inline-flex items-center gap-2">
                     <Command className="size-4 text-primary" />
-                    Search or jump to tasks, projects, and views
+                    {text.searchOrJump}
                   </span>
                   <span className="text-xs">⌘K</span>
                 </button>
                 {searchOpen ? (
                   <div className="absolute right-0 z-20 mt-2 w-full rounded-[24px] bg-white/98 p-4 shadow-[0_18px_44px_rgba(43,75,185,0.12)] backdrop-blur-xl">
-                    <input autoFocus className="input-shell" onChange={(event) => setSearch(event.target.value)} placeholder="Type to search tasks or jump to a destination…" value={search} />
+                    <input autoFocus className="input-shell" onChange={(event) => setSearch(event.target.value)} placeholder={text.searchPlaceholder} value={search} />
                     <div className="mt-4 grid gap-4 xl:grid-cols-[180px_minmax(0,1fr)]">
                       <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Destinations</p>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{text.destinations}</p>
                         <div className="space-y-2">
                           {commandMatches.destinationMatches.map((item) => {
                             const Icon = item.icon;
@@ -1209,7 +1285,7 @@ export function WorkspaceApp() {
                         </div>
                       </div>
                       <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Tasks</p>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{text.tasks}</p>
                         <div className="space-y-2">
                           {commandMatches.taskMatches.length > 0 ? commandMatches.taskMatches.map((task) => (
                             <button className="flex w-full items-center justify-between gap-3 rounded-[16px] bg-slate-50 px-3 py-3 text-left transition hover:bg-slate-100" key={task.id} onClick={() => { openTaskDetail(task); setSearchOpen(false); }} type="button">
@@ -1217,9 +1293,9 @@ export function WorkspaceApp() {
                                 <p className="truncate text-sm font-semibold">{task.title}</p>
                                 <p className="truncate text-xs text-muted-foreground">{task.assigneeName} · due {task.dueDate}</p>
                               </div>
-                              <Badge className={cn("rounded-full border-0", statusMeta[task.status].badgeClassName)}>{statusMeta[task.status].label}</Badge>
+                              <Badge className={cn("rounded-full border-0", statusMeta[task.status].badgeClassName)}>{getStatusLabel(locale, task.status)}</Badge>
                             </button>
-                          )) : <EmptyStateCard description="Try a task title, assignee, or label." title="No command results" />}
+                          )) : <EmptyStateCard description={text.tryTaskTitle} title={text.noCommandResults} />}
                         </div>
                       </div>
                     </div>
@@ -1240,7 +1316,7 @@ export function WorkspaceApp() {
 
               <div className="hidden rounded-full bg-white/80 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.3)] md:flex md:items-center md:gap-2">
                 <CircleDot className={cn("size-3", connectionState === "live" ? "fill-emerald-500 text-emerald-500" : connectionState === "connecting" ? "fill-amber-400 text-amber-400" : "fill-rose-500 text-rose-500")} />
-                <span className="text-xs font-medium text-muted-foreground">{connectionState}</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.connectionStates[connectionState]}</span>
               </div>
 
               <button className="flex h-10 w-10 items-center justify-center rounded-full bg-white/85 shadow-[inset_0_0_0_1px_rgba(195,198,215,0.35)]" onClick={() => setProfileDialogOpen(true)} type="button">
@@ -1252,17 +1328,17 @@ export function WorkspaceApp() {
           </header>
 
           {surfaceNotice ? <div className={cn("fixed right-4 top-4 z-50 rounded-[18px] px-4 py-3 text-sm shadow-[0_18px_40px_rgba(15,23,42,0.12)]", surfaceNotice.tone === "success" ? "bg-emerald-50 text-emerald-800 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18),0_18px_40px_rgba(16,185,129,0.10)]" : "bg-rose-50 text-rose-800 shadow-[inset_0_0_0_1px_rgba(244,63,94,0.18),0_18px_40px_rgba(244,63,94,0.10)]")}>{surfaceNotice.message}</div> : null}
-          {snapshot.deployment?.message ? <div className="rounded-[22px] bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.2)]"><div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-4 shrink-0" /><div><p className="font-semibold">Enterprise deployment notice</p><p>{snapshot.deployment.message}</p></div></div></div> : null}
+          {snapshot.deployment?.message ? <div className="rounded-[22px] bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.2)]"><div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-4 shrink-0" /><div><p className="font-semibold">{text.enterpriseNotice}</p><p>{snapshot.deployment.message}</p></div></div></div> : null}
           {snapshot.enterpriseMeta?.licenseWarning ? <div className="rounded-[22px] bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-[inset_0_0_0_1px_rgba(244,63,94,0.16)]">{snapshot.enterpriseMeta.licenseWarning}</div> : null}
 
           <main className="min-w-0 space-y-4">
-            {workspaceHubOpen ? <WorkspaceHubView busy={workspaceBusy} discoverableWorkspaces={workspaceDirectory} onCreateWorkspace={createWorkspace} onDeleteWorkspace={deleteWorkspace} onJoinWorkspace={requestWorkspaceJoin} onManageWorkspace={openWorkspaceManager} onSwitchWorkspace={switchWorkspace} workspaces={workspaceCatalog} /> : null}
-            {!workspaceHubOpen && view === "home" ? <HomeView focusTasks={focusTasks} inboxCount={inboxEntries.length} onOpenInbox={() => { setWorkspaceHubOpen(false); setView("inbox"); }} onOpenCalendar={() => setView("calendar")} onOpenCollaborate={() => { setView("collaborate"); }} onOpenTask={openTaskDetail} recentDecisionNotes={recentDecisionNotes} reviewTasks={waitingTasks} upcomingEvents={upcomingEvents} /> : null}
-            {!workspaceHubOpen && view === "inbox" ? <InboxView activeFilter={inboxFilter} items={filteredInboxEntries} onFilterChange={setInboxFilter} onOpenItem={(item) => void handleInboxOpen(item)} onPrimaryAction={(item) => void handleInboxPrimary(item)} onSecondaryAction={(item) => void handleInboxSecondary(item)} /> : null}
-            {!workspaceHubOpen && view === "my-work" ? <MyWorkView dueTodayTasks={myDueTodayTasks} focusTasks={myFocusTasks} onOpenTask={openTaskDetail} recentTasks={myRecentTasks} waitingTasks={myWaitingTasks} /> : null}
-            {!workspaceHubOpen && view === "projects" ? <ProjectsView activeTab={projectsTab} canEdit={permissions.editWorkspace} ganttGranularity={ganttGranularity} ganttRangeDays={ganttRangeDays} onDropTask={dropTaskToStatus} onGanttGranularityChange={(value) => { setGanttGranularity(value); setGanttRangeDays(value === "day" ? 60 : value === "week" ? 120 : 365); }} onOpenTask={openTaskDetail} onQuickCreate={quickCreateTask} onQuickPatch={(task, patch) => { void inlineUpdateTask(task.id, patch); }} onTabChange={setProjectsTab} onUpdateDependencies={updateTaskDependencies} onUpdateTaskDates={updateTaskDates} tasks={projectTasks} zoom={ganttZoom} onZoomChange={setGanttZoom} /> : null}
-            {!workspaceHubOpen && view === "calendar" ? <CalendarView calendarViewMode={calendarViewMode} events={workspace.agenda} externalEvents={snapshot.externalAgenda ?? []} monthCursor={selectedDay} monthGrid={monthGrid} onCalendarViewModeChange={setCalendarViewMode} onCreateEvent={permissions.editCalendar ? (day) => openEventEditor(undefined, day) : undefined} onEditEvent={permissions.editCalendar ? openEventEditor : undefined} onMonthChange={setSelectedDay} onMoveEvent={permissions.editCalendar ? moveEventWindow : undefined} onResizeEvent={permissions.editCalendar ? resizeEventWindow : undefined} onSelectDay={setSelectedDay} selectedDay={selectedDay} /> : null}
-            {!workspaceHubOpen && view === "collaborate" ? <CollaborateView canEdit={permissions.editNotes} onSceneChange={permissions.editNotes ? saveWhiteboardScene : undefined} scene={whiteboardScene} workspaceId={workspace.id} /> : null}
+            {workspaceHubOpen ? <WorkspaceHubView busy={workspaceBusy} discoverableWorkspaces={workspaceDirectory} locale={locale} onCreateWorkspace={createWorkspace} onDeleteWorkspace={deleteWorkspace} onJoinWorkspace={requestWorkspaceJoin} onManageWorkspace={openWorkspaceManager} onSwitchWorkspace={switchWorkspace} workspaces={workspaceCatalog} /> : null}
+            {!workspaceHubOpen && view === "home" ? <HomeView focusTasks={focusTasks} inboxCount={inboxEntries.length} locale={locale} onOpenInbox={() => { setWorkspaceHubOpen(false); setView("inbox"); }} onOpenCalendar={() => setView("calendar")} onOpenCollaborate={() => { setView("collaborate"); }} onOpenTask={openTaskDetail} recentDecisionNotes={recentDecisionNotes} reviewTasks={waitingTasks} upcomingEvents={upcomingEvents} /> : null}
+            {!workspaceHubOpen && view === "inbox" ? <InboxView activeFilter={inboxFilter} items={filteredInboxEntries} locale={locale} onFilterChange={setInboxFilter} onOpenItem={(item) => void handleInboxOpen(item)} onPrimaryAction={(item) => void handleInboxPrimary(item)} onSecondaryAction={(item) => void handleInboxSecondary(item)} /> : null}
+            {!workspaceHubOpen && view === "my-work" ? <MyWorkView dueTodayTasks={myDueTodayTasks} focusTasks={myFocusTasks} locale={locale} onOpenTask={openTaskDetail} recentTasks={myRecentTasks} waitingTasks={myWaitingTasks} /> : null}
+            {!workspaceHubOpen && view === "projects" ? <ProjectsView activeTab={projectsTab} canEdit={permissions.editWorkspace} ganttGranularity={ganttGranularity} ganttRangeDays={ganttRangeDays} locale={locale} onDropTask={dropTaskToStatus} onGanttGranularityChange={(value) => { setGanttGranularity(value); setGanttRangeDays(value === "day" ? 60 : value === "week" ? 120 : 365); }} onOpenTask={openTaskDetail} onQuickCreate={quickCreateTask} onQuickPatch={(task, patch) => { void inlineUpdateTask(task.id, patch); }} onTabChange={setProjectsTab} onUpdateDependencies={updateTaskDependencies} onUpdateTaskDates={updateTaskDates} tasks={projectTasks} zoom={ganttZoom} onZoomChange={setGanttZoom} /> : null}
+            {!workspaceHubOpen && view === "calendar" ? <CalendarView calendarViewMode={calendarViewMode} events={workspace.agenda} externalEvents={snapshot.externalAgenda ?? []} locale={locale} monthCursor={selectedDay} monthGrid={monthGrid} onCalendarViewModeChange={setCalendarViewMode} onCreateEvent={permissions.editCalendar ? (day) => openEventEditor(undefined, day) : undefined} onEditEvent={permissions.editCalendar ? openEventEditor : undefined} onMonthChange={setSelectedDay} onMoveEvent={permissions.editCalendar ? moveEventWindow : undefined} onResizeEvent={permissions.editCalendar ? resizeEventWindow : undefined} onSelectDay={setSelectedDay} selectedDay={selectedDay} /> : null}
+            {!workspaceHubOpen && view === "collaborate" ? <CollaborateView canEdit={permissions.editNotes} locale={locale} onSceneChange={permissions.editNotes ? saveWhiteboardScene : undefined} scene={whiteboardScene} workspaceId={workspace.id} /> : null}
           </main>
         </div>
       </div>
@@ -1270,19 +1346,19 @@ export function WorkspaceApp() {
       <div className="fixed inset-x-2 bottom-2 z-40 lg:hidden">
         <div className="rounded-[24px] bg-white/92 p-1.5 shadow-[0_18px_44px_rgba(43,75,185,0.12)] backdrop-blur-xl">
           <div className="grid grid-cols-5 gap-1.5">
-            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "home" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setView("home"); }} type="button"><LayoutDashboard className="size-4" />Home</button>
-            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "inbox" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setView("inbox"); }} type="button"><Inbox className="size-4" />Inbox</button>
-            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "my-work" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setView("my-work"); }} type="button"><ListTodo className="size-4" />My Work</button>
-            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "projects" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setProjectsTab("board"); setView("projects"); }} type="button"><Rocket className="size-4" />Projects</button>
+            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "home" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setView("home"); }} type="button"><LayoutDashboard className="size-4" />{text.home}</button>
+            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "inbox" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setView("inbox"); }} type="button"><Inbox className="size-4" />{text.inbox}</button>
+            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "my-work" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setView("my-work"); }} type="button"><ListTodo className="size-4" />{text.myWork}</button>
+            <button className={cn("flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium", view === "projects" ? "bg-[#dfe7ff] text-primary" : "text-muted-foreground")} onClick={() => { setWorkspaceHubOpen(false); setProjectsTab("board"); setView("projects"); }} type="button"><Rocket className="size-4" />{text.projects}</button>
             <div className="relative">
-              <button className="flex w-full flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium text-muted-foreground" onClick={() => setMobileMoreOpen((current) => !current)} type="button"><PanelsTopLeft className="size-4" />More</button>
+              <button className="flex w-full flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-xs font-medium text-muted-foreground" onClick={() => setMobileMoreOpen((current) => !current)} type="button"><PanelsTopLeft className="size-4" />{text.moreMenu}</button>
               {mobileMoreOpen ? (
                 <div className="absolute bottom-14 right-0 w-[220px] rounded-[22px] bg-white/98 p-3 shadow-[0_16px_40px_rgba(43,75,185,0.12)] backdrop-blur-xl">
                   <div className="space-y-2">
-                    <Button className="w-full justify-start" onClick={() => { setView("calendar"); setMobileMoreOpen(false); }} size="sm" variant="outline"><CalendarDays className="size-4" />Calendar</Button>
-                    <Button className="w-full justify-start" onClick={() => { setView("collaborate"); setMobileMoreOpen(false); }} size="sm" variant="outline"><PanelsTopLeft className="size-4" />Collaborate</Button>
-                    <Button className="w-full justify-start" onClick={() => { setWorkspaceHubOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Rocket className="size-4" />Workspaces</Button>
-                    <Button className="w-full justify-start" onClick={() => { setProfileDialogOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Sparkles className="size-4" />Settings</Button>
+                    <Button className="w-full justify-start" onClick={() => { setView("calendar"); setMobileMoreOpen(false); }} size="sm" variant="outline"><CalendarDays className="size-4" />{text.calendar}</Button>
+                    <Button className="w-full justify-start" onClick={() => { setView("collaborate"); setMobileMoreOpen(false); }} size="sm" variant="outline"><PanelsTopLeft className="size-4" />{text.collaborate}</Button>
+                    <Button className="w-full justify-start" onClick={() => { setWorkspaceHubOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Rocket className="size-4" />{text.workspaces}</Button>
+                    <Button className="w-full justify-start" onClick={() => { setProfileDialogOpen(true); setMobileMoreOpen(false); }} size="sm" variant="outline"><Sparkles className="size-4" />{text.settings}</Button>
                   </div>
                 </div>
               ) : null}
@@ -1295,7 +1371,7 @@ export function WorkspaceApp() {
       {currentUser ? <TaskDetailDialog currentUser={currentUser} deletingAttachmentId={deletingAttachmentId} deletingCommentId={deletingCommentId} deletingTask={deletingTaskId === selectedTaskId} members={members} onCommentChange={setTaskCommentDraft} onCommentDelete={deleteTaskComment} onCommentSubmit={submitTaskComment} onDeleteTask={deleteTask} onFileDelete={deleteAttachment} onFileUpload={uploadAttachment} onOpenChange={setTaskDetailOpen} onReplyTargetChange={setReplyTargetId} onSave={saveTaskDetail} open={taskDetailOpen} permissions={permissions} replyTargetId={replyTargetId} selectedTask={selectedTask} setTaskDetailDraft={setTaskDetailDraft} taskCommentDraft={taskCommentDraft} taskDetailDraft={taskDetailDraft} uploadBusy={uploadBusy} userDirectory={userDirectory} /> : null}
       <EventDialog deleting={deletingEventId === editingEventId} editing={Boolean(editingEventId)} eventDraft={eventDraft} onChange={setEventDraft} onDelete={editingEventId ? deleteEvent : undefined} onOpenChange={setEventDialogOpen} onSubmit={submitEvent} open={eventDialogOpen} />
       <ProfileDialog currentUser={currentUser} onChange={setProfileDraft} onLogout={logout} onOpenChange={setProfileDialogOpen} onSubmit={saveProfile} open={profileDialogOpen} profileDraft={profileDraft} />
-      <MembersDialog currentUser={currentUser} members={managedWorkspaceMembers} onOpenChange={(value) => { setMembersDialogOpen(value); if (!value) { setManagedWorkspace(null); setManagedWorkspaceMembers([]); } }} onRoleChange={updateWorkspaceMemberRole} open={membersDialogOpen} readOnly={managedWorkspace?.id === DEFAULT_WORKSPACE_ID} updatingUserId={updatingWorkspaceMemberId} workspaceName={formatWorkspaceName(managedWorkspace?.name ?? "Workspace")} />
+      <MembersDialog currentUser={currentUser} members={managedWorkspaceMembers} onOpenChange={(value) => { if (!value) { setManagedWorkspace(null); setManagedWorkspaceMembers([]); } setMembersDialogOpen(value); }} onRoleChange={updateWorkspaceMemberRole} open={membersDialogOpen} readOnly={managedWorkspace?.id === DEFAULT_WORKSPACE_ID} updatingUserId={updatingWorkspaceMemberId} workspaceName={formatWorkspaceName(managedWorkspace?.name ?? "Workspace")} />
       <SavedViewsDialog onApply={applySavedView} onCreate={createSavedView} onDelete={deleteSavedView} onOpenChange={setSavedViewsOpen} open={savedViewsOpen} savedViews={savedViews} />
       <AutomationDialog onOpenChange={setAutomationOpen} onToggle={toggleAutomationRule} open={automationOpen} rules={automationRules} />
       <InsightsDialog analytics={analytics} onOpenChange={setInsightsOpen} open={insightsOpen} />
