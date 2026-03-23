@@ -20,14 +20,16 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: 3002
       HOSTNAME: 0.0.0.0
       NEXT_TELEMETRY_DISABLED: "1"
       MONGODB_URI: mongodb://mongo:27017/newkanban
       MONGODB_DB: newkanban
       WORKSPACE_ID: visualai-guest
+      ENTERPRISE_MODE: "false"
+      MONGODB_LICENSE_ACKNOWLEDGED: "false"
     ports:
-      - "3000:3000"
+      - "3002:3002"
     volumes:
       - uploads_data:/app/public/uploads
 

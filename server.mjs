@@ -9,7 +9,7 @@ const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 const dev = process.env.NODE_ENV !== "production";
-const port = Number.parseInt(process.env.PORT ?? "3000", 10);
+const port = Number.parseInt(process.env.PORT ?? "3002", 10);
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const mongoUri = process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/newkanban";
 const dbName = process.env.MONGODB_DB ?? "newkanban";
@@ -699,7 +699,7 @@ async function main() {
   const db = await getDb();
   await ensureWorkspaceDocument(db);
 
-  if ((process.env.ENTERPRISE_MODE === "true" || process.env.NODE_ENV === "production") && !mongoLicenseAcknowledged) {
+  if (enterpriseMode && !mongoLicenseAcknowledged) {
     console.warn("[enterprise] MONGODB_LICENSE_ACKNOWLEDGED is not set. MongoDB Community Server licensing must be reviewed before enterprise deployment.");
   }
 

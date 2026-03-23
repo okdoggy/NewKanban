@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3000";
+const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3002";
 const ACCOUNT_ID = process.env.QA_ACCOUNT_ID ?? "whiteboard.qa";
 const PASSWORD = process.env.QA_PASSWORD ?? "1234";
 const DEFAULT_WORKSPACE_ID = process.env.WORKSPACE_ID ?? "visualai-guest";

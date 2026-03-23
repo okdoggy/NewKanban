@@ -1,4 +1,4 @@
-const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3000";
+const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:3002";
 const ACCOUNT_ID = process.env.QA_ACCOUNT_ID ?? "admin.kim";
 const PASSWORD = process.env.QA_PASSWORD ?? "Admin123!";
 

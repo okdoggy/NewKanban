@@ -4,7 +4,7 @@ const enterpriseMode = process.env.ENTERPRISE_MODE === "true";
 const mongoLicenseAcknowledged = process.env.MONGODB_LICENSE_ACKNOWLEDGED === "true";
 
 export function getEnterpriseMeta(): EnterpriseMeta {
-  const requiresAck = enterpriseMode || process.env.NODE_ENV === "production";
+  const requiresAck = enterpriseMode;
 
   return {
     mongoLicenseAcknowledged,
